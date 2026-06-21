@@ -1,0 +1,1735 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Leak — Find where your café is bleeding money</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   LEAK — design tokens (first-pass premium dark)
+   ============================================================ */
+:root{
+  /* light, friendly, mass-appeal — violet brand */
+  --bg:#f4f3fa;
+  --bg-2:#ffffff;
+  --surface:#ffffff;
+  --surface-2:#faf9fe;
+  --surface-3:#efedf8;
+  --line:rgba(34,28,46,.09);
+  --line-2:rgba(34,28,46,.15);
+  --ink:#211c2e;
+  --ink-soft:#4b4559;
+  --muted:#857f93;
+  --muted-2:#a39db2;
+  --brand:#6d28d9;
+  --brand-2:#7c3aed;
+  --brand-soft:rgba(109,40,217,.08);
+  --brand-line:rgba(109,40,217,.22);
+  --green:#199a66;
+  --green-soft:rgba(25,154,102,.10);
+  --green-line:rgba(25,154,102,.26);
+  --leak:#df5a36;
+  --leak-2:#e0552f;
+  --leak-soft:rgba(223,90,54,.09);
+  --leak-line:rgba(223,90,54,.26);
+  --amber:#cf962a;
+  --amber-soft:rgba(207,150,42,.13);
+  --radius:18px;
+  --radius-sm:12px;
+  --radius-lg:24px;
+  --maxw:1140px;
+  --shadow:0 1px 2px rgba(34,28,46,.05), 0 12px 30px -16px rgba(34,28,46,.16);
+  --font:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --display:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);
+  -webkit-font-smoothing:antialiased;line-height:1.55;letter-spacing:-.011em;
+  font-size:16px;
+}
+body{background:
+  radial-gradient(1100px 640px at 82% -10%, rgba(124,58,237,.06), transparent 60%),
+  var(--bg);
+}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit}
+h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:-.028em;line-height:1.08}
+p{margin:0}
+::selection{background:rgba(124,58,237,.18)}
+.mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+/* distinctive display face — used only for hero moments & big numbers */
+.hero-h,.rc-big,.headline .big,.rep-title,h2.sec-h,.greet,.kpi .v,.latest .lv,
+.price .amt,.bill-plan,.an-h,.ob-h,.auth-h,.lc-impact .iv,.act-tally .v,.hleak{
+  font-family:var(--display);font-optical-sizing:auto;font-weight:560;letter-spacing:-.035em}
+
+/* ---------- buttons ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+  border:1px solid transparent;border-radius:12px;padding:.78rem 1.15rem;
+  font-size:.95rem;font-weight:600;cursor:pointer;transition:.16s ease;
+  white-space:nowrap;letter-spacing:-.01em;
+}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--brand);color:#fff;font-weight:650;box-shadow:0 10px 24px -12px rgba(109,40,217,.5)}
+.btn-primary:hover{background:var(--brand-2);transform:translateY(-1px)}
+.btn-ghost{background:var(--surface-2);color:var(--ink);border-color:var(--line-2)}
+.btn-ghost:hover{background:var(--surface-3);border-color:rgba(240,232,218,.22)}
+.btn-quiet{background:transparent;color:var(--muted);border-color:var(--line)}
+.btn-quiet:hover{color:var(--ink);border-color:var(--line-2)}
+.btn-danger{background:transparent;color:#e89175;border-color:var(--leak-line)}
+.btn-danger:hover{background:var(--leak-soft)}
+.btn-lg{padding:1rem 1.6rem;font-size:1.04rem;border-radius:13px}
+.btn-block{width:100%}
+.btn-sm{padding:.5rem .8rem;font-size:.86rem}
+
+/* ---------- badges ---------- */
+.badge{display:inline-flex;align-items:center;gap:.4rem;font-size:.74rem;font-weight:650;
+  padding:.28rem .6rem;border-radius:999px;letter-spacing:.01em;border:1px solid var(--line-2)}
+.badge-dot{width:6px;height:6px;border-radius:999px;background:currentColor}
+.b-leak{color:var(--leak);background:var(--leak-soft);border-color:var(--leak-line)}
+.b-green{color:var(--green);background:var(--green-soft);border-color:var(--green-line)}
+.b-amber{color:#9a7218;background:var(--amber-soft);border-color:rgba(207,150,42,.32)}
+.b-muted{color:var(--muted);background:var(--surface-2);border-color:var(--line)}
+.conf{font-size:.72rem;font-weight:650;color:var(--muted);display:inline-flex;align-items:center;gap:.45rem}
+.conf .bars{display:inline-flex;gap:2px}
+.conf .bars i{width:4px;height:11px;border-radius:1px;background:var(--surface-3);display:inline-block}
+.conf.high .bars i{background:var(--green)}
+.conf.medium .bars i:nth-child(-n+2){background:var(--amber)}
+.conf.low .bars i:nth-child(-n+1){background:var(--leak)}
+
+/* ---------- cards / inputs ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+/* light-theme card lift */
+.step,.find,.price,.secitem,.set-card,.leakcard,.billcard,.latest,.actions,.problem,.note-prev,.headline{box-shadow:var(--shadow)}
+.eyebrow{font-size:.78rem;font-weight:680;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2)}
+label.f{display:block;font-size:.82rem;font-weight:600;color:var(--ink-soft);margin:0 0 .4rem}
+.hint{font-size:.8rem;color:var(--muted-2)}
+.input,.select,.textarea{
+  width:100%;background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink);
+  border-radius:11px;padding:.72rem .85rem;font-size:.95rem;font-family:inherit;transition:.15s;
+}
+.input:focus,.select:focus,.textarea:focus{outline:none;border-color:var(--green-line);box-shadow:0 0 0 3px rgba(95,199,148,.12)}
+.textarea{resize:vertical;min-height:96px}
+.select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239a9da4' stroke-width='2.4'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right .85rem center;padding-right:2.2rem}
+.field{margin-bottom:1.05rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:560px){.grid2{grid-template-columns:1fr}}
+
+/* ---------- realism: timestamps, data-quality, notes, sources ---------- */
+.meta-line{font-size:.78rem;color:var(--muted-2);display:flex;align-items:center;gap:.55rem;flex-wrap:wrap}
+.meta-line .dotsep{width:3px;height:3px;border-radius:99px;background:var(--muted-2);display:inline-block;opacity:.55}
+.dq{display:flex;gap:.7rem;align-items:flex-start;background:var(--amber-soft);border:1px solid rgba(216,168,90,.28);border-radius:12px;padding:14px 16px;margin-top:16px}
+.dq svg{width:16px;height:16px;color:var(--amber);flex:0 0 auto;margin-top:2px}
+.dq .dqt{font-size:.9rem;color:var(--ink-soft);line-height:1.55}
+.dq .dqt b{color:var(--amber);font-weight:650}
+.dq .dqt .fn{font-variant-numeric:tabular-nums;color:var(--muted);background:var(--bg-2);border:1px solid var(--line);border-radius:5px;padding:.05rem .3rem;font-size:.84rem}
+.src{font-size:.76rem;color:var(--muted-2);margin-top:.8rem;display:flex;align-items:center;gap:.45rem;line-height:1.4}
+.src svg{width:12px;height:12px;opacity:.7;flex:0 0 auto}
+.note-prev{background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:15px 17px;margin-bottom:14px}
+.note-prev .nph{display:flex;align-items:center;gap:.55rem;font-size:.75rem;color:var(--muted-2);margin-bottom:.55rem}
+.note-prev .nph .who{color:var(--ink-soft);font-weight:600}
+.note-prev .npb{font-size:.95rem;color:var(--ink-soft);line-height:1.6;font-style:italic}
+.closed{display:inline-flex;align-items:center;gap:.4rem;font-size:.72rem;font-weight:650;color:var(--green);background:var(--green-soft);border:1px solid var(--green-line);border-radius:999px;padding:.26rem .6rem}
+.closed svg{width:11px;height:11px}
+.fchip.err{color:var(--leak);border-color:var(--leak-line);background:var(--leak-soft)}
+.fchip.err svg{color:var(--leak)}
+.fchip .fsz{margin-left:auto;color:var(--muted-2);font-size:.73rem}
+.fchip .fx{margin-left:auto;color:var(--muted-2);font-size:.73rem}
+.hist-gap{display:flex;align-items:center;gap:.75rem;padding:16px 20px;color:var(--muted-2);font-size:.85rem;font-style:italic;background:var(--bg-2);border:1px solid var(--line);border-radius:14px}
+.hist-gap svg{width:15px;height:15px;flex:0 0 auto}
+.invtab{width:100%;border-collapse:collapse;margin-top:8px}
+.invtab td{padding:13px 0;border-bottom:1px solid var(--line);font-size:.9rem}
+.invtab tr:last-child td{border-bottom:none}
+.invtab .amt{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-soft)}
+.invtab .lk{color:var(--muted);text-align:right}
+.invtab .lk a{border-bottom:1px solid var(--line-2);padding-bottom:1px}
+.invtab .st{color:var(--green);font-size:.8rem}
+
+/* ============================================================
+   ROUTING
+   ============================================================ */
+.page{display:none}
+.page.active{display:block;animation:fade .35s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ============================================================
+   MARKETING shell
+   ============================================================ */
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+.topnav{position:sticky;top:0;z-index:40;backdrop-filter:blur(14px);
+  background:rgba(255,255,255,.8);border-bottom:1px solid var(--line)}
+.topnav .row{display:flex;align-items:center;justify-content:space-between;height:66px}
+.brand{display:flex;align-items:center;gap:.6rem;font-weight:720;letter-spacing:-.03em;font-size:1.18rem}
+.brand .drop{width:22px;height:22px;position:relative}
+.nav-links{display:flex;gap:1.7rem;align-items:center}
+.nav-links a{font-size:.92rem;color:var(--muted);font-weight:550;transition:.15s}
+.nav-links a:hover{color:var(--ink)}
+.nav-cta{display:flex;gap:.6rem;align-items:center}
+@media(max-width:860px){.nav-links{display:none}.nav-cta .ghost-hide{display:none}}
+
+/* hero */
+.hero{padding:96px 0 44px}
+.hero-grid{display:grid;grid-template-columns:1.08fr .92fr;gap:64px;align-items:center}
+@media(max-width:960px){.hero-grid{grid-template-columns:1fr;gap:44px}.hero{padding:56px 0 12px}}
+.h-tag{display:inline-flex;align-items:center;gap:.55rem;font-size:.72rem;font-weight:550;color:var(--muted-2);
+  letter-spacing:.16em;text-transform:uppercase;margin-bottom:1.9rem}
+h1.hero-h{font-size:clamp(2.8rem,6.6vw,4.9rem);line-height:.98;letter-spacing:-.038em;font-weight:560}
+h1.hero-h .accent{color:var(--leak);font-style:italic}
+.hero-sub{margin-top:1.7rem;font-size:1.2rem;color:var(--muted);max-width:34ch;line-height:1.5}
+.hero-btns{display:flex;gap:.8rem;margin-top:2.4rem;flex-wrap:wrap;align-items:center}
+.trust{margin-top:1.9rem;font-size:.85rem;color:var(--muted-2);display:flex;align-items:center;gap:.5rem}
+
+/* hero report card */
+.reportcard{background:linear-gradient(180deg,var(--surface-2),var(--surface));
+  border:1px solid var(--line-2);border-radius:var(--radius-lg);padding:26px;
+  box-shadow:0 40px 90px -40px rgba(0,0,0,.9), 0 1px 0 rgba(255,255,255,.05) inset;position:relative;overflow:hidden}
+.reportcard:before{content:"";position:absolute;inset:0;background:radial-gradient(420px 200px at 85% -10%,rgba(223,106,67,.16),transparent 60%);pointer-events:none}
+.rc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.4rem}
+.rc-label{font-size:.8rem;color:var(--muted);font-weight:600}
+.rc-big{font-size:3.1rem;font-weight:700;letter-spacing:-.04em;line-height:1;margin:.35rem 0 .2rem;color:var(--ink)}
+.rc-big .cur{color:var(--leak);font-size:1.7rem;vertical-align:.55rem;margin-right:.1rem}
+.rc-sub{font-size:.84rem;color:var(--muted)}
+.rc-cards{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:18px 0}
+.minicard{background:var(--bg-2);border:1px solid var(--line);border-radius:13px;padding:12px 13px}
+.minicard .t{font-size:.78rem;color:var(--muted);font-weight:550}
+.minicard .v{font-size:1.18rem;font-weight:680;margin-top:.25rem;color:var(--leak)}
+.rc-check{border-top:1px solid var(--line);padding-top:14px}
+.rc-check .h{font-size:.74rem;font-weight:680;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);margin-bottom:.7rem}
+.rc-check ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.55rem}
+.rc-check li{display:flex;gap:.6rem;align-items:flex-start;font-size:.9rem;color:var(--ink-soft)}
+.tick{flex:0 0 auto;width:17px;height:17px;border-radius:5px;background:var(--green-soft);border:1px solid var(--green-line);
+  color:var(--green);display:grid;place-items:center;margin-top:1px}
+.tick svg{width:11px;height:11px}
+
+/* section scaffold */
+.section{padding:100px 0}
+.section.tight{padding:66px 0}
+.sec-head{max-width:46ch}
+h2.sec-h{font-size:clamp(1.9rem,4vw,2.9rem);letter-spacing:-.035em;font-weight:560;line-height:1.02}
+.sec-lead{margin-top:1.1rem;color:var(--muted);font-size:1.1rem;line-height:1.55}
+.divider{height:1px;background:var(--line);max-width:var(--maxw);margin:0 auto}
+
+/* problem band */
+.problem{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:42px}
+.problem p{font-size:1.22rem;line-height:1.6;color:var(--ink-soft);max-width:62ch;letter-spacing:-.015em}
+.problem .pull{color:var(--leak);font-weight:600}
+@media(max-width:560px){.problem{padding:26px}.problem p{font-size:1.08rem}}
+
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:34px}
+@media(max-width:760px){.steps{grid-template-columns:1fr}}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:24px;position:relative}
+.step .n{font-size:.78rem;font-weight:700;color:var(--brand);letter-spacing:.1em}
+.step h3{font-size:1.18rem;margin:.7rem 0 .5rem}
+.step p{color:var(--muted);font-size:.94rem}
+
+/* finds grid */
+.finds{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:34px}
+@media(max-width:900px){.finds{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.finds{grid-template-columns:1fr}}
+.find{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;transition:.16s}
+.find:hover{border-color:var(--line-2);background:var(--surface-2)}
+.find .dot{width:8px;height:8px;border-radius:999px;background:var(--leak);margin-bottom:12px}
+.find h4{font-size:1rem;font-weight:620}
+.find p{font-size:.85rem;color:var(--muted);margin-top:.35rem}
+
+/* pricing */
+.prices{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:38px;max-width:860px}
+@media(max-width:720px){.prices{grid-template-columns:1fr}}
+.price{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:30px;position:relative}
+.price.feat{border-color:var(--green-line);background:linear-gradient(180deg,rgba(95,199,148,.06),var(--surface))}
+.price .tier{font-size:.82rem;font-weight:680;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.price .amt{font-size:2.7rem;font-weight:700;letter-spacing:-.04em;margin:.5rem 0 0}
+.price .amt span{font-size:1rem;color:var(--muted);font-weight:500;letter-spacing:0}
+.price ul{list-style:none;margin:1.4rem 0;padding:0;display:flex;flex-direction:column;gap:.7rem}
+.price li{display:flex;gap:.6rem;font-size:.92rem;color:var(--ink-soft);align-items:flex-start}
+.price li .tick{width:16px;height:16px}
+.flag{position:absolute;top:-11px;right:24px;font-size:.7rem;font-weight:700;letter-spacing:.08em;
+  background:var(--green);color:#06210f;padding:.3rem .65rem;border-radius:999px}
+
+/* faq */
+.faq{max-width:760px;margin-top:30px}
+.qitem{border-bottom:1px solid var(--line)}
+.qitem button{width:100%;background:none;border:none;color:var(--ink);text-align:left;
+  padding:20px 0;font-size:1.06rem;font-weight:560;cursor:pointer;display:flex;justify-content:space-between;gap:1rem;align-items:center}
+.qitem .ans{max-height:0;overflow:hidden;transition:max-height .28s ease;color:var(--muted)}
+.qitem.open .ans{max-height:200px}
+.qitem .ans p{padding:0 0 20px;font-size:.98rem}
+.qitem .pm{flex:0 0 auto;color:var(--muted);transition:.25s}
+.qitem.open .pm{transform:rotate(45deg);color:var(--green)}
+
+/* security */
+.sec-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:32px}
+@media(max-width:820px){.sec-grid{grid-template-columns:1fr}}
+.secitem{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px}
+.secitem .ic{width:34px;height:34px;border-radius:10px;background:var(--green-soft);border:1px solid var(--green-line);
+  color:var(--green);display:grid;place-items:center;margin-bottom:14px}
+.secitem .ic svg{width:17px;height:17px}
+.secitem h4{font-size:1.02rem}
+.secitem p{font-size:.88rem;color:var(--muted);margin-top:.4rem}
+
+/* cta band */
+.ctaband{background:linear-gradient(180deg,var(--surface-2),var(--surface));border:1px solid var(--line-2);
+  border-radius:var(--radius-lg);padding:48px;text-align:center;position:relative;overflow:hidden}
+.ctaband:before{content:"";position:absolute;inset:0;background:radial-gradient(500px 220px at 50% -30%,rgba(95,199,148,.12),transparent);pointer-events:none}
+
+/* footer */
+.foot{border-top:1px solid var(--line);padding:40px 0;color:var(--muted-2);font-size:.86rem}
+.foot .row{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:center}
+.foot a{color:var(--muted)}
+.foot a:hover{color:var(--ink)}
+
+/* ============================================================
+   AUTH
+   ============================================================ */
+.authwrap{min-height:100vh;display:grid;place-items:center;padding:40px 20px}
+.authcard{width:100%;max-width:420px}
+.authcard .card{padding:34px}
+.auth-brand{display:flex;align-items:center;gap:.55rem;justify-content:center;font-weight:720;font-size:1.2rem;margin-bottom:6px}
+.auth-h{font-size:1.5rem;text-align:center;margin-top:1.2rem}
+.auth-sub{text-align:center;color:var(--muted);font-size:.92rem;margin:.5rem 0 1.6rem}
+.auth-foot{text-align:center;font-size:.88rem;color:var(--muted);margin-top:1.3rem}
+.auth-foot a{color:var(--brand);font-weight:600}
+.oauth{display:flex;flex-direction:column;gap:.6rem;margin-bottom:1.1rem}
+.divider-or{display:flex;align-items:center;gap:.8rem;color:var(--muted-2);font-size:.78rem;margin:1.1rem 0}
+.divider-or:before,.divider-or:after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* ============================================================
+   APP shell
+   ============================================================ */
+.app{display:none;min-height:100vh}
+body.app-mode .app{display:grid;grid-template-columns:248px 1fr}
+/* report + analysis pages render the app shell without app-mode */
+.page.active .app{display:grid;grid-template-columns:248px 1fr}
+.page.active #reportApp,.page.active .analysis-shell{min-height:100vh}
+.sidebar{background:var(--bg-2);border-right:1px solid var(--line);padding:20px 14px;
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.sb-brand{display:flex;align-items:center;gap:.55rem;font-weight:720;font-size:1.12rem;padding:6px 8px 18px}
+.sb-cafe{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:16px}
+.sb-cafe .nm{font-size:.92rem;font-weight:620}
+.sb-cafe .lo{font-size:.78rem;color:var(--muted-2);margin-top:1px}
+.sb-nav{display:flex;flex-direction:column;gap:2px}
+.sb-nav a{display:flex;align-items:center;gap:.7rem;padding:.62rem .7rem;border-radius:10px;
+  color:var(--muted);font-size:.92rem;font-weight:550;cursor:pointer;transition:.13s}
+.sb-nav a svg{width:17px;height:17px;opacity:.85}
+.sb-nav a:hover{background:var(--surface);color:var(--ink)}
+.sb-nav a.on{background:var(--brand-soft);color:var(--brand);font-weight:600}
+.sb-nav a.on svg{color:var(--brand);opacity:1}
+.sb-sec{font-size:.68rem;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--muted-2);padding:14px 10px 6px}
+.sb-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--line)}
+.sb-plan{display:flex;align-items:center;justify-content:space-between;font-size:.82rem;color:var(--muted);padding:.4rem .6rem}
+
+.main{min-width:0;display:flex;flex-direction:column;min-height:100vh}
+.apphead{height:64px;border-bottom:none;display:flex;align-items:center;justify-content:space-between;
+  padding:0 26px;position:sticky;top:0;background:linear-gradient(90deg,var(--brand),var(--brand-2));z-index:20;
+  box-shadow:0 8px 24px -16px rgba(109,40,217,.6)}
+.apphead .ttl{font-size:1.05rem;font-weight:700;color:#fff}
+.apphead .right{display:flex;align-items:center;gap:.8rem}
+.apphead .meta-line{color:rgba(255,255,255,.82)}
+.apphead .meta-line .dotsep{background:rgba(255,255,255,.6)}
+.apphead .btn-primary{background:#fff;color:var(--brand);box-shadow:none}
+.apphead .btn-primary:hover{background:#f4f0fd}
+.apphead .btn-quiet{color:rgba(255,255,255,.9);border-color:rgba(255,255,255,.32)}
+.apphead .btn-quiet:hover{color:#fff;border-color:rgba(255,255,255,.55);background:rgba(255,255,255,.08)}
+.avatar{width:32px;height:32px;border-radius:999px;background:rgba(255,255,255,.22);
+  border:1px solid rgba(255,255,255,.45);display:grid;place-items:center;font-size:.8rem;font-weight:700;color:#fff}
+.burger{display:none;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);border-radius:9px;width:38px;height:38px;cursor:pointer;color:#fff}
+.content{padding:30px 26px 60px;max-width:1040px;width:100%;margin:0 auto;flex:1}
+@media(max-width:880px){
+  body.app-mode .app, .page.active .app{grid-template-columns:1fr}
+  .sidebar{position:fixed;z-index:60;width:270px;transform:translateX(-100%);transition:.22s}
+  body.nav-open .sidebar{transform:none;box-shadow:0 0 0 100vmax rgba(0,0,0,.5)}
+  .burger{display:grid;place-items:center}
+  .content{padding:22px 16px 50px}
+  .apphead{padding:0 16px}
+}
+@media(max-width:620px){.apphead .meta-line{display:none}}
+
+/* dashboard */
+.greet{font-size:1.7rem;letter-spacing:-.03em;font-weight:640}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:32px}
+@media(max-width:900px){.kpis{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.kpis{grid-template-columns:1fr}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow)}
+.kpi .k{font-size:.78rem;color:var(--muted);font-weight:500;letter-spacing:.01em}
+.kpi .v{font-size:1.95rem;letter-spacing:-.03em;margin-top:.6rem;line-height:1}
+.kpi .v.leak{color:var(--leak)}
+.kpi .v.green{color:var(--green)}
+.kpi .meta{font-size:.78rem;color:var(--muted-2);margin-top:.55rem}
+
+.latest{margin-top:24px;background:linear-gradient(180deg,var(--surface-2),var(--surface));
+  border:1px solid var(--line-2);border-radius:var(--radius-lg);padding:26px;position:relative;overflow:hidden}
+.latest:before{content:"";position:absolute;inset:0;background:radial-gradient(420px 180px at 90% -20%,rgba(223,106,67,.12),transparent 60%);pointer-events:none}
+.latest-row{display:flex;justify-content:space-between;gap:20px;align-items:center;flex-wrap:wrap}
+.latest .lh{font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);font-weight:680}
+.latest .lv{font-size:2.4rem;font-weight:700;letter-spacing:-.04em;margin:.4rem 0 .2rem}
+.latest .lv .cur{color:var(--leak);font-size:1.4rem;vertical-align:.4rem}
+.latest .lmeta{display:flex;gap:1.4rem;flex-wrap:wrap;margin-top:.6rem}
+.latest .lmeta div{font-size:.84rem;color:var(--muted)}
+.latest .lmeta b{color:var(--ink);font-weight:600}
+.quick{display:flex;gap:.7rem;margin-top:22px;flex-wrap:wrap}
+
+/* ---------- dashboard graphs ---------- */
+.dash-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:24px;margin-top:18px}
+.dash-h{font-size:1.05rem;font-weight:700;letter-spacing:-.02em}
+.dash-sub{font-size:.84rem;color:var(--muted);margin-top:2px}
+.health{display:grid;grid-template-columns:240px 1fr;gap:30px;align-items:center;margin-top:18px}
+@media(max-width:680px){.health{grid-template-columns:1fr;gap:16px}}
+.gauge-wrap{position:relative;width:240px;max-width:100%;margin:0 auto}
+.gauge-wrap svg{display:block;width:100%;height:auto}
+.gauge-val{position:absolute;left:0;right:0;bottom:8px;text-align:center}
+.gauge-val .score{font-family:var(--display);font-size:2.7rem;font-weight:800;letter-spacing:-.03em;line-height:1}
+.gauge-val .slabel{font-size:.82rem;color:var(--amber);font-weight:700;margin-top:2px}
+.gscale{display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted-2);margin-top:-6px;padding:0 6px}
+.health-copy p{font-size:.98rem;color:var(--ink-soft);line-height:1.62}
+.health-copy .delta{color:var(--green);font-weight:600;font-size:.84rem;margin-top:.7rem;display:inline-flex;gap:.35rem;align-items:center}
+
+.donuts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+@media(max-width:680px){.donuts{grid-template-columns:1fr}}
+.donut-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:22px;text-align:center}
+.donut-card .dt{font-size:.86rem;color:var(--muted);font-weight:600}
+.donut{width:124px;height:124px;margin:14px auto 12px;position:relative}
+.donut svg{transform:rotate(-90deg)}
+.donut .dval{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.donut .dval b{font-family:var(--display);font-weight:800;font-size:1.55rem;letter-spacing:-.02em;line-height:1}
+.donut .dval small{font-size:.7rem;font-weight:500;color:var(--muted);margin-top:3px}
+.pill{display:inline-block;font-size:.74rem;font-weight:600;padding:.28rem .7rem;border-radius:999px}
+.pill.bad{background:var(--leak-soft);color:var(--leak)}
+.pill.good{background:var(--green-soft);color:var(--green)}
+.pill.warn{background:var(--amber-soft);color:#9a7218}
+.donut-foot{font-size:.78rem;color:var(--muted-2);margin-top:10px}
+
+.bars-h{display:flex;flex-direction:column;gap:15px;margin-top:18px}
+.barrow{display:grid;grid-template-columns:130px 1fr 56px;gap:14px;align-items:center}
+.barrow .blabel{font-size:.92rem;color:var(--ink-soft)}
+.bartrack{height:12px;background:var(--surface-3);border-radius:999px;overflow:hidden}
+.barfill{height:100%;background:var(--leak);border-radius:999px}
+.barrow .bval{font-size:.92rem;font-weight:700;color:var(--leak);font-variant-numeric:tabular-nums;text-align:right}
+@media(max-width:560px){.barrow{grid-template-columns:96px 1fr 50px;gap:10px}.barrow .blabel{font-size:.84rem}}
+
+/* upload */
+.up-cats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 4px}
+@media(max-width:620px){.up-cats{grid-template-columns:1fr}}
+.upcard{background:var(--surface);border:1px dashed var(--line-2);border-radius:14px;padding:18px;transition:.15s;cursor:pointer}
+.upcard:hover{border-color:var(--green-line);background:var(--surface-2)}
+.upcard.has{border-style:solid;border-color:var(--green-line);background:linear-gradient(180deg,rgba(95,199,148,.05),var(--surface))}
+.upcard .uh{display:flex;justify-content:space-between;align-items:center}
+.upcard .un{font-weight:600;font-size:.96rem}
+.upcard .ud{font-size:.82rem;color:var(--muted);margin-top:.3rem}
+.upcard .files{margin-top:10px;display:flex;flex-direction:column;gap:5px}
+.fchip{display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:var(--ink-soft);
+  background:var(--bg-2);border:1px solid var(--line);border-radius:8px;padding:.4rem .55rem}
+.fchip svg{width:13px;height:13px;color:var(--green)}
+.up-note{background:var(--surface-2);border:1px solid var(--line);border-left:3px solid var(--green);
+  border-radius:10px;padding:14px 16px;font-size:.9rem;color:var(--ink-soft);margin:18px 0}
+
+/* analysis */
+.analysis{min-height:calc(100vh - 64px);display:grid;place-items:center;padding:40px 20px}
+.analysis .inner{width:100%;max-width:520px;text-align:center}
+.spinwrap{width:84px;height:84px;margin:0 auto 26px;position:relative}
+.spinwrap .ring{position:absolute;inset:0;border-radius:999px;border:2px solid var(--line)}
+.spinwrap .ring.go{border-top-color:var(--green);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinwrap .drop2{position:absolute;inset:0;display:grid;place-items:center}
+.an-h{font-size:1.4rem;letter-spacing:-.03em}
+.an-sub{color:var(--muted);margin:.7rem auto 0;max-width:36ch;font-size:.96rem}
+.an-steps{margin:30px auto 0;text-align:left;display:flex;flex-direction:column;gap:9px;max-width:380px}
+.an-step{display:flex;align-items:center;gap:.8rem;background:var(--surface);border:1px solid var(--line);
+  border-radius:12px;padding:13px 15px;font-size:.92rem;color:var(--muted);transition:.3s}
+.an-step .box{width:20px;height:20px;border-radius:6px;border:1px solid var(--line-2);flex:0 0 auto;display:grid;place-items:center}
+.an-step .box svg{width:12px;height:12px;opacity:0;transition:.2s}
+.an-step.active{color:var(--ink);border-color:var(--line-2);background:var(--surface-2)}
+.an-step.done{color:var(--ink-soft)}
+.an-step.done .box{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+.an-step.done .box svg{opacity:1}
+.an-step.active .box{border-color:var(--green);position:relative}
+.an-step.active .box:after{content:"";position:absolute;inset:3px;border-radius:3px;background:var(--green);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+
+/* ============================================================
+   LEAK WEEKLY REPORT — the hero screen
+   ============================================================ */
+.report{max-width:880px;margin:0 auto}
+.rep-head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap}
+.rep-kicker{display:flex;align-items:center;gap:.6rem;color:var(--muted);font-size:.84rem;font-weight:560}
+.rep-title{font-size:2.4rem;letter-spacing:-.035em;margin-top:.5rem;font-weight:560}
+.rep-cafe{color:var(--muted);font-size:.96rem;margin-top:.3rem}
+.rep-actions{display:flex;gap:.5rem;flex-wrap:wrap}
+
+/* the money headline */
+.headline{margin-top:24px;background:
+  radial-gradient(600px 240px at 80% -30%,rgba(223,106,67,.16),transparent 62%),
+  linear-gradient(180deg,var(--surface-2),var(--surface));
+  border:1px solid var(--leak-line);border-radius:var(--radius-lg);padding:32px;position:relative;overflow:hidden}
+.headline .lbl{font-size:.86rem;color:var(--ink-soft);font-weight:560;display:flex;align-items:center;gap:.5rem}
+.headline .big{font-size:clamp(3.8rem,12vw,6rem);font-weight:600;letter-spacing:-.05em;line-height:.9;margin:.45rem 0 .15rem;color:var(--ink)}
+.headline .big .cur{color:var(--leak);font-size:.4em;vertical-align:.72em;margin-right:.06em}
+.headline .annual{font-size:1.04rem;color:var(--leak);font-weight:550;margin-top:.5rem}
+.headline .annual span{color:var(--muted)}
+.headline-foot{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-top:22px;
+  padding-top:20px;border-top:1px solid var(--line)}
+.spark{display:flex;align-items:flex-end;gap:5px;height:42px}
+.spark i{width:9px;border-radius:3px 3px 0 0;background:var(--surface-3);display:block}
+.spark i.now{background:var(--leak)}
+.spark-wrap{display:flex;align-items:center;gap:14px}
+.spark-cap{font-size:.78rem;color:var(--muted-2);line-height:1.4}
+
+/* value / ROI band — the persuasion engine */
+.valueband{margin-top:14px;background:linear-gradient(180deg,rgba(95,199,148,.07),var(--surface));
+  border:1px solid var(--green-line);border-radius:var(--radius);padding:22px 24px;
+  display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:18px;align-items:center}
+.vb-cell .vl{font-size:.76rem;color:var(--muted);font-weight:560;letter-spacing:.02em}
+.vb-cell .vv{font-size:1.55rem;font-weight:720;letter-spacing:-.03em;margin-top:.25rem}
+.vb-cell .vv.green{color:var(--green)}
+.vb-op{font-size:1.4rem;color:var(--muted-2);font-weight:300}
+.vb-roi{font-size:.84rem;color:var(--ink-soft);margin-top:.2rem}
+@media(max-width:740px){
+  .valueband{grid-template-columns:1fr 1fr;gap:16px}
+  .vb-op{display:none}
+}
+.payoff{margin-top:12px;display:flex;gap:.6rem;align-items:center;font-size:.92rem;color:var(--ink-soft);
+  background:var(--green-soft);border:1px solid var(--green-line);border-radius:12px;padding:13px 16px}
+.payoff b{color:var(--green)}
+
+.disclaimer{font-size:.8rem;color:var(--muted-2);background:var(--surface);border:1px solid var(--line);
+  border-radius:10px;padding:12px 14px;margin-top:14px;display:flex;gap:.6rem;align-items:flex-start}
+.disclaimer svg{width:14px;height:14px;flex:0 0 auto;margin-top:2px;color:var(--muted)}
+
+/* exec summary */
+.exec{margin-top:28px}
+.exec h3{font-size:1.06rem;display:flex;align-items:center;gap:.55rem}
+.exec p{margin-top:.7rem;color:var(--ink-soft);font-size:1.04rem;line-height:1.62;letter-spacing:-.012em}
+.exec .voice{display:inline-flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--muted);
+  border:1px solid var(--line-2);border-radius:999px;padding:.25rem .6rem;margin-top:14px}
+
+/* leak cards */
+.leaks-head{display:flex;align-items:baseline;justify-content:space-between;margin:34px 0 14px}
+.sec-label{font-size:.76rem;font-weight:720;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2)}
+.leaklist{display:flex;flex-direction:column;gap:13px}
+.leakcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;transition:.16s}
+.leakcard:hover{border-color:var(--line-2)}
+/* the biggest leak reads more urgent than the rest */
+.leaklist .leakcard:first-child{border-color:var(--leak-line);background:linear-gradient(180deg,rgba(223,106,67,.06),var(--surface))}
+.lc-bar{height:3px;background:var(--leak)}
+.lc-bar.amber{background:var(--amber)}
+.lc-head{display:flex;align-items:flex-start;gap:14px;padding:20px 22px;cursor:pointer}
+.lc-rank{flex:0 0 auto;width:30px;height:30px;border-radius:9px;background:var(--leak-soft);border:1px solid var(--leak-line);
+  color:var(--leak);font-weight:720;font-size:.92rem;display:grid;place-items:center}
+.lc-mid{flex:1;min-width:0}
+.lc-type{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.lc-title{font-size:1.12rem;font-weight:620;margin-top:.45rem;letter-spacing:-.02em}
+.lc-impact{flex:0 0 auto;text-align:right}
+.lc-impact .il{font-size:.72rem;color:var(--muted);font-weight:550}
+.lc-impact .iv{font-size:1.5rem;font-weight:720;color:var(--leak);letter-spacing:-.03em;line-height:1}
+.lc-chev{flex:0 0 auto;color:var(--muted-2);transition:.2s;margin-top:4px}
+.leakcard.open .lc-chev{transform:rotate(180deg)}
+.lc-body{max-height:0;overflow:hidden;transition:max-height .32s ease}
+.leakcard.open .lc-body{max-height:680px}
+.lc-inner{padding:0 22px 22px;border-top:1px solid var(--line);margin-top:0}
+.lc-grid{display:grid;gap:16px;padding-top:18px}
+.lc-block .bl{font-size:.74rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-2);margin-bottom:.4rem}
+.lc-block p{font-size:.95rem;color:var(--ink-soft);line-height:1.55}
+.lc-action{background:var(--green-soft);border:1px solid var(--green-line);border-radius:12px;padding:15px 16px}
+.lc-action .bl{color:var(--green)}
+.lc-action p{color:#14794f}
+.lc-foot{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;
+  margin-top:4px;padding-top:14px;border-top:1px solid var(--line)}
+.lc-save{font-size:.92rem;color:var(--ink-soft)}
+.lc-save b{color:var(--green);font-weight:700}
+@media(max-width:560px){
+  .lc-head{padding:16px;gap:11px}
+  .lc-title{font-size:1.02rem}
+  .lc-impact .iv{font-size:1.25rem}
+  .lc-inner{padding:0 16px 18px}
+}
+
+/* action checklist */
+.actions{margin-top:34px;background:linear-gradient(180deg,var(--surface-2),var(--surface));
+  border:1px solid var(--line-2);border-radius:var(--radius-lg);padding:26px}
+.act-top{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:6px}
+.act-tally{text-align:right}
+.act-tally .t{font-size:.76rem;color:var(--muted)}
+.act-tally .v{font-size:1.4rem;font-weight:720;color:var(--green);letter-spacing:-.03em}
+.acts{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+.act{display:flex;gap:14px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);
+  border-radius:14px;padding:16px;transition:.15s}
+.act:hover{border-color:var(--line-2)}
+.act.checked{background:linear-gradient(180deg,rgba(95,199,148,.06),var(--surface));border-color:var(--green-line)}
+.act .cb{flex:0 0 auto;width:23px;height:23px;border-radius:7px;border:1.5px solid var(--line-2);cursor:pointer;
+  display:grid;place-items:center;transition:.15s;margin-top:1px}
+.act .cb svg{width:13px;height:13px;color:#06210f;opacity:0;transition:.12s}
+.act.checked .cb{background:var(--green);border-color:var(--green)}
+.act.checked .cb svg{opacity:1}
+.act-main{flex:1;min-width:0}
+.act-main .at{font-size:1rem;font-weight:580;letter-spacing:-.01em}
+.act.checked .at{text-decoration:line-through;text-decoration-color:var(--muted-2);color:var(--muted)}
+.act-meta{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.6rem}
+.act-save{flex:0 0 auto;text-align:right;font-size:.92rem;color:var(--green);font-weight:680;white-space:nowrap}
+
+/* owner notes */
+.notes{margin-top:24px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:24px}
+.notes h3{font-size:1.06rem}
+.notes p.q{color:var(--muted);font-size:.94rem;margin:.5rem 0 1rem}
+.rep-foot{display:flex;gap:.7rem;margin-top:26px;flex-wrap:wrap;align-items:center}
+
+/* report history */
+.histlist{display:flex;flex-direction:column;gap:11px;margin-top:22px}
+.histrow{display:grid;grid-template-columns:1.4fr 1fr 1fr auto auto;gap:16px;align-items:center;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;transition:.15s;cursor:pointer}
+.histrow:hover{border-color:var(--line-2);background:var(--surface-2)}
+.histrow .hweek{font-weight:600;font-size:.98rem}
+.histrow .hweek small{display:block;color:var(--muted-2);font-size:.78rem;font-weight:400;margin-top:2px}
+.histrow .hleak{font-size:1.15rem;font-weight:700;color:var(--leak);letter-spacing:-.02em}
+.histrow .hcol .cl{font-size:.72rem;color:var(--muted-2);display:none}
+@media(max-width:760px){
+  .histrow{grid-template-columns:1fr auto;gap:10px}
+  .histrow .hcol .cl{display:block;margin-bottom:2px}
+  .histrow .hview{grid-column:1/-1}
+  .histrow .hview .btn{width:100%}
+}
+
+/* settings */
+.set-sec{margin-top:20px}
+.set-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:24px}
+.set-card h3{font-size:1.05rem;margin-bottom:.4rem}
+.set-card .sd{color:var(--muted);font-size:.88rem;margin-bottom:18px}
+.toggle{position:relative;width:44px;height:25px;border-radius:999px;background:var(--surface-3);border:1px solid var(--line-2);cursor:pointer;transition:.18s;flex:0 0 auto}
+.toggle:after{content:"";position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:999px;background:var(--muted);transition:.18s}
+.toggle.on{background:var(--green-soft);border-color:var(--green-line)}
+.toggle.on:after{left:21px;background:var(--green)}
+.togrow{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:14px 0;border-top:1px solid var(--line)}
+.togrow:first-child{border-top:none}
+.togrow .tt{font-size:.94rem;font-weight:550}
+.togrow .td{font-size:.82rem;color:var(--muted);margin-top:2px}
+
+/* billing */
+.billcard{background:linear-gradient(180deg,var(--surface-2),var(--surface));border:1px solid var(--line-2);
+  border-radius:var(--radius-lg);padding:28px}
+.bill-top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap}
+.bill-plan{font-size:1.4rem;font-weight:680;letter-spacing:-.02em}
+.bill-price{font-size:.94rem;color:var(--muted);margin-top:.3rem}
+.bill-rows{margin-top:22px;border-top:1px solid var(--line)}
+.bill-row{display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line);font-size:.92rem}
+.bill-row .bk{color:var(--muted)}
+.bill-row .bv{font-weight:560}
+.bill-btns{display:flex;gap:.6rem;margin-top:22px;flex-wrap:wrap}
+
+/* locked state */
+.locked{text-align:center;max-width:460px;margin:40px auto;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--radius-lg);padding:40px 30px}
+.locked .lk{width:52px;height:52px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line-2);
+  display:grid;place-items:center;margin:0 auto 18px;color:var(--muted)}
+.locked h3{font-size:1.3rem}
+.locked p{color:var(--muted);margin:.6rem auto 1.5rem;max-width:34ch}
+
+/* empty state */
+.empty{text-align:center;padding:50px 20px;color:var(--muted)}
+.empty .ei{width:46px;height:46px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);
+  display:grid;place-items:center;margin:0 auto 14px;color:var(--muted-2)}
+
+/* misc */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;
+  background:#241f31;border:1px solid rgba(255,255,255,.12);color:#fff;padding:.8rem 1.2rem;border-radius:12px;
+  font-size:.9rem;font-weight:550;z-index:200;transition:.25s;box-shadow:0 20px 40px -16px rgba(34,28,46,.5);pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.steps-dots{display:flex;gap:.5rem;margin-bottom:24px}
+.steps-dots .sd{flex:1;height:4px;border-radius:999px;background:var(--surface-3)}
+.steps-dots .sd.on{background:var(--green)}
+.ob-wrap{max-width:560px;margin:0 auto}
+.ob-eyebrow{color:var(--muted);font-size:.84rem;font-weight:560;margin-bottom:.4rem}
+.ob-h{font-size:1.7rem;letter-spacing:-.03em;margin-bottom:1.4rem}
+.ob-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:30px}
+.ob-foot{display:flex;justify-content:space-between;margin-top:24px;gap:1rem}
+.chip-row{display:flex;gap:.5rem;flex-wrap:wrap}
+.chip{border:1px solid var(--line-2);background:var(--bg-2);border-radius:999px;padding:.45rem .85rem;font-size:.86rem;
+  color:var(--muted);cursor:pointer;transition:.13s;user-select:none}
+.chip.on{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand)}
+.ob-done{text-align:center;padding:14px 0}
+.ob-done .big-tick{width:64px;height:64px;border-radius:999px;background:var(--green-soft);border:1px solid var(--green-line);
+  color:var(--green);display:grid;place-items:center;margin:0 auto 20px}
+.range-row{display:flex;align-items:center;gap:14px}
+input[type=range]{flex:1;accent-color:var(--green)}
+.range-val{font-size:1.1rem;font-weight:680;min-width:48px;text-align:right}
+</style>
+</head>
+<body>
+
+<!-- DROP ICON -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="drop" viewBox="0 0 24 24">
+    <path d="M12 2.5c3.6 4.3 6.5 8 6.5 11.4A6.5 6.5 0 1 1 5.5 13.9C5.5 10.5 8.4 6.8 12 2.5z" fill="var(--leak)" opacity=".9"/>
+    <circle cx="9.6" cy="14.4" r="2" fill="#fff" opacity=".22"/>
+  </symbol>
+  <symbol id="check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<!-- MARKETING NAV -->
+<div id="marketing">
+<nav class="topnav">
+  <div class="wrap row">
+    <a class="brand" data-go="/"><svg class="drop"><use href="#drop"/></svg> Leak</a>
+    <div class="nav-links">
+      <a data-go="/" data-scroll="how">How it works</a>
+      <a data-go="/" data-scroll="finds">What it finds</a>
+      <a data-go="/" data-scroll="pricing">Pricing</a>
+      <a data-go="/reports/sample">Sample report</a>
+      <a data-go="/" data-scroll="security">Security</a>
+    </div>
+    <div class="nav-cta">
+      <a class="btn btn-quiet ghost-hide" data-go="/login">Log in</a>
+      <a class="btn btn-primary" data-go="/signup">Start finding leaks</a>
+    </div>
+  </div>
+</nav>
+
+<!-- LANDING -->
+<main class="page" data-route="/">
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="h-tag"><svg class="drop" style="width:14px;height:14px"><use href="#drop"/></svg> Weekly profit reviews for cafés</span>
+        <h1 class="hero-h">Find where your café is <span class="accent">bleeding money.</span></h1>
+        <p class="hero-sub">Leak reviews your café’s sales, supplier invoices and labour reports, then tells you where profit is disappearing and what to fix next week.</p>
+        <div class="hero-btns">
+          <a class="btn btn-primary btn-lg" data-go="/signup">Start finding leaks</a>
+          <a class="btn btn-ghost btn-lg" data-go="/reports/sample">See sample report</a>
+        </div>
+        <div class="trust"><svg class="drop" style="width:13px;height:13px"><use href="#drop"/></svg> Built for independent cafés, not corporate restaurant groups.</div>
+      </div>
+
+      <div class="reportcard">
+        <div class="rc-top">
+          <div>
+            <div class="rc-label">Estimated leak this week</div>
+            <div class="rc-big"><span class="cur">$</span>1,247</div>
+            <div class="rc-sub">Hearth &amp; Co · Week starting 10 June</div>
+          </div>
+          <span class="conf medium"><span class="bars"><i></i><i></i><i></i></span> Medium</span>
+        </div>
+        <div class="rc-cards">
+          <div class="minicard"><div class="t">Labour leak</div><div class="v">$486</div></div>
+          <div class="minicard"><div class="t">Menu pricing</div><div class="v">$350</div></div>
+          <div class="minicard"><div class="t">Supplier creep</div><div class="v">$211</div></div>
+          <div class="minicard"><div class="t">Waste leak</div><div class="v">$200</div></div>
+        </div>
+        <div class="rc-check">
+          <div class="h">Fix next week</div>
+          <ul>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> Reduce Tuesday lunch roster by one team member</li>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> Raise bacon &amp; egg roll by $1</li>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> Reduce pastry order by 15%</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="problem">
+    <div class="wrap">
+      <div class="problem">
+        <span class="eyebrow">The problem</span>
+        <p style="margin-top:1rem">Most café owners know their weekly sales. <span class="pull">Fewer know where the profit disappears.</span> A few extra rostered hours, supplier price creep, over-ordering, underpriced menu items and wasted prep can quietly remove thousands from the month.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section tight" id="how">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">How Leak works</span>
+        <h2 class="sec-h" style="margin-top:.8rem">Every Monday, know what to fix.</h2>
+        <p class="sec-lead">No integrations. No setup project. Upload what you already have, and read your report with your coffee.</p>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="n">01</div><h3>Upload last week’s numbers</h3><p>Drop in supplier invoices, your POS sales export and a roster report. PDF, CSV, XLSX or TXT — whatever you’ve got.</p></div>
+        <div class="step"><div class="n">02</div><h3>Leak reviews the leaks</h3><p>Leak reads your week like an experienced operator — checking labour, food cost, pricing and waste against your café’s targets.</p></div>
+        <div class="step"><div class="n">03</div><h3>Get clear actions every Monday</h3><p>A short report showing where money went, what it’s worth, and exactly what to change next week.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section tight" id="finds">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">What Leak finds</span>
+        <h2 class="sec-h" style="margin-top:.8rem">The leaks that hide in a normal week.</h2>
+      </div>
+      <div class="finds">
+        <div class="find"><div class="dot"></div><h4>Labour leaks</h4><p>Rostered hours that don’t match the day’s sales.</p></div>
+        <div class="find"><div class="dot"></div><h4>Supplier price increases</h4><p>Quiet creep on milk, bacon and daily staples.</p></div>
+        <div class="find"><div class="dot"></div><h4>Food cost pressure</h4><p>Where your plate cost is drifting above target.</p></div>
+        <div class="find"><div class="dot"></div><h4>Waste patterns</h4><p>Over-prep and over-ordering that compounds fast.</p></div>
+        <div class="find"><div class="dot"></div><h4>Underpriced menu items</h4><p>Popular items that no longer carry their weight.</p></div>
+        <div class="find"><div class="dot"></div><h4>Low-margin best sellers</h4><p>High volume, thin margin — draining you daily.</p></div>
+        <div class="find"><div class="dot"></div><h4>Quiet days, high hours</h4><p>Weekend staffing on a soft Tuesday lunch.</p></div>
+        <div class="find"><div class="dot"></div><h4>Prep &amp; ordering issues</h4><p>Order volumes that don’t fit weekday demand.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section tight">
+    <div class="wrap">
+      <div class="latest" style="cursor:pointer" data-go="/reports/sample">
+        <span class="eyebrow" style="color:var(--muted)">Sample report preview</span>
+        <div class="latest-row" style="margin-top:14px">
+          <div>
+            <div class="rc-sub" style="font-size:.95rem">Hearth &amp; Co — Fremantle WA</div>
+            <div class="lv"><span class="cur">$</span>1,247 <span style="font-size:.9rem;color:var(--muted);font-weight:500">estimated leak this week</span></div>
+            <div class="lmeta"><div>Top leak: <b>Labour</b></div><div>Confidence: <b>Medium</b></div><div>Recoverable: <b style="color:var(--green)">~$4,300/mo</b></div></div>
+          </div>
+          <a class="btn btn-ghost" data-go="/reports/sample">Open full report →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="pricing">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Pricing</span>
+        <h2 class="sec-h" style="margin-top:.8rem">One café. One clear price.</h2>
+        <p class="sec-lead">If Leak finds one labour leak a month, it’s already paid for itself many times over.</p>
+      </div>
+      <div class="prices">
+        <div class="price">
+          <div class="tier">Starter</div>
+          <div class="amt">$99<span> /month</span></div>
+          <ul>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> 1 café</li>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> Weekly upload</li>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> Weekly Leak report</li>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> Supplier invoice review</li>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> Labour leak review</li>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> Menu pricing review</li>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> Report history</li>
+          </ul>
+          <a class="btn btn-ghost btn-block" data-go="/signup">Start with Starter</a>
+        </div>
+        <div class="price feat">
+          <span class="flag">MORE DEPTH</span>
+          <div class="tier">Pro</div>
+          <div class="amt">$199<span> /month</span></div>
+          <ul>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> Everything in Starter</li>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> Deeper recommendations</li>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> Monthly trend report</li>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> Multiple file batches per week</li>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> Priority report review</li>
+            <li><span class="tick"><svg><use href="#check"/></svg></span> PDF report export</li>
+          </ul>
+          <a class="btn btn-primary btn-block" data-go="/signup">Start with Pro</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="security">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Data security &amp; privacy</span>
+        <h2 class="sec-h" style="margin-top:.8rem">Your numbers stay yours.</h2>
+        <p class="sec-lead">Your café’s data is sensitive. We treat it that way — private by default, and never a product we sell.</p>
+      </div>
+      <div class="sec-grid">
+        <div class="secitem"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><h4>Private to your café</h4><p>Your uploads belong to you. We never sell your data and never share it with other businesses.</p></div>
+        <div class="secitem"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z"/></svg></div><h4>Not used to train public AI</h4><p>Your invoices and rosters are never used to train public or third-party AI models. They’re used only to produce your report.</p></div>
+        <div class="secitem"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 12l2 2 4-4"/></svg></div><h4>Stored securely</h4><p>Data is encrypted in transit and at rest, hosted with reputable infrastructure providers.</p></div>
+        <div class="secitem"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2"/></svg></div><h4>Row-level access controls</h4><p>Strict row-level security means only your account can ever read your café’s records. No cross-account access.</p></div>
+        <div class="secitem"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></div><h4>Deletable any time</h4><p>Delete a single file, a report, or your entire account whenever you like. Removed data is permanently deleted.</p></div>
+        <div class="secitem"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></div><h4>You stay in control</h4><p>Export your reports any time, and cancel whenever you want. No lock-in, no games.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section tight">
+    <div class="wrap">
+      <span class="eyebrow">FAQ</span>
+      <div class="faq">
+        <div class="qitem"><button>Do I need integrations?<span class="pm">+</span></button><div class="ans"><p>No. Version one works with simple uploads. There’s nothing to connect and nothing to configure.</p></div></div>
+        <div class="qitem"><button>Can I upload PDFs?<span class="pm">+</span></button><div class="ans"><p>Yes. Upload supplier invoices, POS reports, roster exports and menu costing files — PDF, CSV, XLSX or TXT.</p></div></div>
+        <div class="qitem"><button>Does this replace my accountant?<span class="pm">+</span></button><div class="ans"><p>No. Leak gives operational profit guidance, not tax or accounting advice. Keep your accountant — Leak helps you between visits.</p></div></div>
+        <div class="qitem"><button>Is this only for cafés?<span class="pm">+</span></button><div class="ans"><p>Version one is built specifically for independent cafés. That focus is exactly why the advice lands.</p></div></div>
+        <div class="qitem"><button>Can I cancel anytime?<span class="pm">+</span></button><div class="ans"><p>Yes. Cancel whenever you like — no contracts, no lock-in.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section tight">
+    <div class="wrap">
+      <div class="ctaband">
+        <h2 class="sec-h">Find the money your café is losing.</h2>
+        <p class="sec-lead" style="margin:1rem auto 0;max-width:46ch">Upload last week’s numbers and get your first Leak Weekly report. Clear actions, real dollars, every Monday.</p>
+        <div style="display:flex;gap:.7rem;justify-content:center;margin-top:1.8rem;flex-wrap:wrap">
+          <a class="btn btn-primary btn-lg" data-go="/signup">Start finding leaks</a>
+          <a class="btn btn-ghost btn-lg" data-go="/reports/sample">See sample report</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="wrap row">
+      <div class="brand" style="font-size:1rem"><svg class="drop" style="width:18px;height:18px"><use href="#drop"/></svg> Leak</div>
+      <div>Weekly profit reviews for cafés · Operational guidance, not accounting advice.</div>
+      <div style="display:flex;gap:1.2rem">
+        <a data-go="/reports/sample">Sample report</a>
+        <a data-go="/" data-scroll="security">Security</a>
+        <a data-go="/login">Log in</a>
+      </div>
+    </div>
+  </footer>
+</main>
+</div><!-- /marketing -->
+
+<!-- SIGNUP -->
+<main class="page" data-route="/signup">
+  <div class="authwrap"><div class="authcard">
+    <div class="auth-brand"><svg class="drop" style="width:22px;height:22px"><use href="#drop"/></svg> Leak</div>
+    <div class="card">
+      <h2 class="auth-h">Start finding leaks</h2>
+      <p class="auth-sub">Create your account. First report takes minutes.</p>
+      <div class="oauth"><button class="btn btn-ghost btn-block">Continue with Google</button></div>
+      <div class="divider-or">or</div>
+      <div class="field"><label class="f">Your name</label><input class="input" placeholder="Sam Carter"></div>
+      <div class="field"><label class="f">Café email</label><input class="input" type="email" placeholder="you@yourcafe.com"></div>
+      <div class="field"><label class="f">Password</label><input class="input" type="password" placeholder="Create a password"></div>
+      <button class="btn btn-primary btn-block btn-lg" data-go="/onboarding">Create account →</button>
+      <p class="auth-foot">Already have an account? <a data-go="/login">Log in</a></p>
+    </div>
+    <p class="auth-foot" style="margin-top:1rem">$99/month · Cancel anytime · Your data stays private</p>
+  </div></div>
+</main>
+
+<!-- LOGIN -->
+<main class="page" data-route="/login">
+  <div class="authwrap"><div class="authcard">
+    <div class="auth-brand"><svg class="drop" style="width:22px;height:22px"><use href="#drop"/></svg> Leak</div>
+    <div class="card">
+      <h2 class="auth-h">Welcome back</h2>
+      <p class="auth-sub">Every Monday, know what to fix.</p>
+      <div class="oauth"><button class="btn btn-ghost btn-block">Continue with Google</button></div>
+      <div class="divider-or">or</div>
+      <div class="field"><label class="f">Email</label><input class="input" type="email" placeholder="you@yourcafe.com"></div>
+      <div class="field"><label class="f">Password</label><input class="input" type="password" placeholder="••••••••"></div>
+      <button class="btn btn-primary btn-block btn-lg" data-go="/dashboard">Log in →</button>
+      <p class="auth-foot">New to Leak? <a data-go="/signup">Start finding leaks</a></p>
+    </div>
+  </div></div>
+</main>
+
+<!-- ONBOARDING -->
+<main class="page" data-route="/onboarding">
+  <div class="authwrap" style="align-items:flex-start;padding-top:60px"><div class="ob-wrap" style="width:100%">
+    <div class="auth-brand" style="justify-content:flex-start;margin-bottom:24px"><svg class="drop" style="width:22px;height:22px"><use href="#drop"/></svg> Leak</div>
+    <div class="steps-dots">
+      <div class="sd on" data-dot="1"></div><div class="sd" data-dot="2"></div><div class="sd" data-dot="3"></div><div class="sd" data-dot="4"></div>
+    </div>
+
+    <div class="ob-step" data-step="1">
+      <div class="ob-eyebrow">Step 1 of 4 · Café basics</div>
+      <h2 class="ob-h">Tell us about your café.</h2>
+      <div class="ob-card">
+        <div class="field"><label class="f">Café name</label><input class="input" value="Hearth & Co"></div>
+        <div class="field"><label class="f">Location</label><input class="input" value="Fremantle WA"></div>
+        <div class="field"><label class="f">Opening days</label>
+          <div class="chip-row" data-chips>
+            <span class="chip on">Mon</span><span class="chip on">Tue</span><span class="chip on">Wed</span><span class="chip on">Thu</span><span class="chip on">Fri</span><span class="chip on">Sat</span><span class="chip on">Sun</span>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:0"><label class="f">Number of staff</label><input class="input" type="number" value="14"></div>
+      </div>
+      <div class="ob-foot"><span></span><button class="btn btn-primary" data-ob-next>Continue →</button></div>
+    </div>
+
+    <div class="ob-step" data-step="2" style="display:none">
+      <div class="ob-eyebrow">Step 2 of 4 · Your numbers</div>
+      <h2 class="ob-h">Set your targets.</h2>
+      <div class="ob-card">
+        <div class="field"><label class="f">Average weekly revenue</label><input class="input" value="$18,400"></div>
+        <div class="field"><label class="f">Target labour percentage</label>
+          <div class="range-row"><input type="range" min="20" max="45" value="30" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="range-val">30%</span></div>
+          <p class="hint" style="margin-top:.5rem">Most independent cafés aim for 28–32%.</p>
+        </div>
+        <div class="field" style="margin-bottom:0"><label class="f">Target food cost percentage</label>
+          <div class="range-row"><input type="range" min="20" max="45" value="30" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="range-val">30%</span></div>
+        </div>
+      </div>
+      <div class="ob-foot"><button class="btn btn-quiet" data-ob-back>← Back</button><button class="btn btn-primary" data-ob-next>Continue →</button></div>
+    </div>
+
+    <div class="ob-step" data-step="3" style="display:none">
+      <div class="ob-eyebrow">Step 3 of 4 · Systems</div>
+      <h2 class="ob-h">What do you use today?</h2>
+      <div class="ob-card">
+        <div class="grid2">
+          <div class="field"><label class="f">POS system</label><select class="select"><option>Lightspeed</option><option>Square</option><option>Kounta</option><option>Other / not sure</option></select></div>
+          <div class="field"><label class="f">Rostering system</label><select class="select"><option>Deputy</option><option>Tanda</option><option>Square Team</option><option>Other / not sure</option></select></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label class="f">Accounting system</label><select class="select"><option>Xero</option><option>MYOB</option><option>QuickBooks</option><option>Other / not sure</option></select></div>
+          <div class="field"><label class="f">Main suppliers</label><input class="input" value="PFD, Bannister Downs Dairy"></div>
+        </div>
+        <p class="hint" style="margin-top:-.3rem">This just helps Leak read your files. Nothing connects automatically — you stay in control.</p>
+      </div>
+      <div class="ob-foot"><button class="btn btn-quiet" data-ob-back>← Back</button><button class="btn btn-primary" data-ob-next>Continue →</button></div>
+    </div>
+
+    <div class="ob-step" data-step="4" style="display:none">
+      <div class="ob-card ob-done">
+        <div class="big-tick"><svg viewBox="0 0 24 24" style="width:30px;height:30px"><use href="#check"/></svg></div>
+        <h2 class="ob-h" style="margin-bottom:.6rem">Leak is ready to review your first week.</h2>
+        <p class="sec-lead" style="margin:0 auto 1.6rem;max-width:34ch">Upload last week’s numbers and we’ll have your first report ready in minutes.</p>
+        <button class="btn btn-primary btn-lg" data-go="/upload">Upload weekly files →</button>
+      </div>
+    </div>
+  </div></div>
+</main>
+
+<!-- APP SHELL -->
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-brand"><svg class="drop" style="width:20px;height:20px"><use href="#drop"/></svg> Leak</div>
+    <div class="sb-cafe">
+      <div class="nm">Hearth &amp; Co</div>
+      <div class="lo">Fremantle WA · Starter plan</div>
+    </div>
+    <nav class="sb-nav" id="sbnav">
+      <a data-go="/dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> Dashboard</a>
+      <a data-go="/reports/sample"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5"/><path d="M7 3h7l5 5v13H7z"/><path d="M9 13h6M9 17h4"/></svg> Latest report</a>
+      <a data-go="/upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg> Upload centre</a>
+      <a data-go="/reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg> Report history</a>
+      <div class="sb-sec">Account</div>
+      <a data-go="/settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1l-.3-2.5h-4l-.3 2.5a7 7 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.3 2.5h4l.3-2.5a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></svg> Settings</a>
+      <a data-go="/billing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg> Billing</a>
+    </nav>
+    <div class="sb-foot">
+      <div class="sb-plan"><span>Starter · $99/mo</span><a class="badge b-green" data-go="/billing" style="cursor:pointer">Active</a></div>
+      <a data-go="/" style="color:var(--muted-2);font-size:.84rem;padding:.5rem .6rem;display:block;cursor:pointer">← Back to site</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="apphead">
+      <div style="display:flex;align-items:center;gap:.8rem">
+        <button class="burger" id="burger"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <span class="ttl" id="appTitle">Dashboard</span>
+      </div>
+      <div class="right">
+        <span class="meta-line" style="margin-right:.2rem">Synced 6:04am</span>
+        <a class="btn btn-primary btn-sm" data-go="/upload">Upload files</a>
+        <div class="avatar">HC</div>
+      </div>
+    </header>
+    <div class="content" id="appContent"></div>
+  </div>
+</div>
+
+<!-- APP PAGES -->
+<div id="appPages" hidden>
+
+  <!-- DASHBOARD -->
+  <section data-app="/dashboard">
+    <h1 class="greet">Good morning, Sam. Here’s what Leak found.</h1>
+    <p class="meta-line" style="margin-top:.6rem">Week 9 with Leak <span class="dotsep"></span> report generated Monday 15 June, 6:04am <span class="dotsep"></span> 4 of 5 files read cleanly</p>
+
+    <!-- profit health gauge -->
+    <div class="dash-card">
+      <div class="dash-h">Profit health</div>
+      <div class="dash-sub">How this week sits against a healthy week for your café.</div>
+      <div class="health">
+        <div>
+          <div class="gauge-wrap">
+            <svg viewBox="0 0 200 124" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16,108 A84,84 0 0 1 184,108" fill="none" stroke="var(--surface-3)" stroke-width="16"/>
+              <path d="M16,108 A84,84 0 0 1 184,108" fill="none" stroke="var(--leak)" stroke-width="16" stroke-dasharray="86 178" stroke-dashoffset="0"/>
+              <path d="M16,108 A84,84 0 0 1 184,108" fill="none" stroke="var(--amber)" stroke-width="16" stroke-dasharray="86 178" stroke-dashoffset="-89"/>
+              <path d="M16,108 A84,84 0 0 1 184,108" fill="none" stroke="var(--green)" stroke-width="16" stroke-linecap="round" stroke-dasharray="86 178" stroke-dashoffset="-178"/>
+              <line x1="100" y1="108" x2="123" y2="49" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="100" cy="108" r="6" fill="var(--ink)"/>
+            </svg>
+            <div class="gauge-val"><div class="score">62</div><div class="slabel">Watch</div></div>
+          </div>
+          <div class="gscale"><span>0</span><span>Leaking</span><span>100</span></div>
+        </div>
+        <div class="health-copy">
+          <p>Hearth &amp; Co is sitting at <b style="color:var(--ink)">watch level</b> this week. Trade was strong, but labour ran above target on the quiet weekdays and a couple of staples crept up — that’s what’s pulling the score down. Clear the top two leaks and you’re back in the green.</p>
+          <span class="delta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 14l6-6 4 4 6-7"/></svg> +4 vs last week · trending the right way</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="k">Estimated leaks this month</div><div class="v leak">$4,380</div><div class="meta">Down from $5,120 in May</div></div>
+      <div class="kpi"><div class="k">Biggest current leak</div><div class="v">Labour</div><div class="meta">34.1% vs 30% target</div></div>
+      <div class="kpi"><div class="k">Recovered so far</div><div class="v green">$2,340</div><div class="meta">From 11 actions you’ve done</div></div>
+      <div class="kpi"><div class="k">Next recommended action</div><div class="v" style="font-size:1.05rem;line-height:1.3">Reduce Tuesday lunch roster by one</div><div class="meta">Easy · ~$220/week</div></div>
+    </div>
+
+    <!-- vs targets -->
+    <div style="margin-top:26px;display:flex;align-items:baseline;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+      <div class="dash-h">Your numbers vs target</div>
+      <span class="meta-line">Last week · against your café profile</span>
+    </div>
+    <div class="donuts">
+      <div class="donut-card">
+        <div class="dt">Labour</div>
+        <div class="donut">
+          <svg width="124" height="124" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="46" fill="none" stroke="var(--surface-3)" stroke-width="12"/>
+            <circle cx="60" cy="60" r="46" fill="none" stroke="var(--leak)" stroke-width="12" stroke-linecap="round" stroke-dasharray="98 289"/>
+          </svg>
+          <div class="dval"><b>34%</b><small>Target 30%</small></div>
+        </div>
+        <span class="pill bad">4 points over</span>
+        <div class="donut-foot">The week’s biggest drag</div>
+      </div>
+      <div class="donut-card">
+        <div class="dt">Food cost</div>
+        <div class="donut">
+          <svg width="124" height="124" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="46" fill="none" stroke="var(--surface-3)" stroke-width="12"/>
+            <circle cx="60" cy="60" r="46" fill="none" stroke="var(--amber)" stroke-width="12" stroke-linecap="round" stroke-dasharray="90 289"/>
+          </svg>
+          <div class="dval"><b>31%</b><small>Target 30%</small></div>
+        </div>
+        <span class="pill warn">just over</span>
+        <div class="donut-foot">Milk &amp; bacon creep</div>
+      </div>
+      <div class="donut-card">
+        <div class="dt">Prime cost</div>
+        <div class="donut">
+          <svg width="124" height="124" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="46" fill="none" stroke="var(--surface-3)" stroke-width="12"/>
+            <circle cx="60" cy="60" r="46" fill="none" stroke="var(--leak)" stroke-width="12" stroke-linecap="round" stroke-dasharray="188 289"/>
+          </svg>
+          <div class="dval"><b>65%</b><small>Target 60%</small></div>
+        </div>
+        <span class="pill bad">5 points over</span>
+        <div class="donut-foot">Labour + food combined</div>
+      </div>
+    </div>
+
+    <div class="latest" style="cursor:pointer;margin-top:26px" data-go="/reports/sample">
+      <span class="eyebrow" style="color:var(--muted)">Latest Leak Weekly report</span>
+      <div class="latest-row" style="margin-top:14px">
+        <div>
+          <div class="lh">Estimated money leaking this week</div>
+          <div class="lv"><span class="cur">$</span>1,247</div>
+          <div class="lmeta">
+            <div>Week starting <b>10 June</b></div>
+            <div>Top leak: <b>Labour</b></div>
+            <div>Confidence: <b>Medium</b></div>
+          </div>
+          <p class="meta-line" style="margin-top:.85rem"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--amber)"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/></svg> Thursday labour is estimated — roster file came in as a scan</p>
+        </div>
+        <a class="btn btn-primary" data-go="/reports/sample">View report →</a>
+      </div>
+    </div>
+
+    <!-- where it leaked -->
+    <div class="dash-card">
+      <div class="dash-h">Where it leaked this week</div>
+      <div class="dash-sub">$1,247 in total — biggest first.</div>
+      <div class="bars-h">
+        <div class="barrow"><div class="blabel">Labour</div><div class="bartrack"><div class="barfill" style="width:100%"></div></div><div class="bval">$486</div></div>
+        <div class="barrow"><div class="blabel">Menu pricing</div><div class="bartrack"><div class="barfill" style="width:72%"></div></div><div class="bval">$350</div></div>
+        <div class="barrow"><div class="blabel">Supplier creep</div><div class="bartrack"><div class="barfill" style="width:43%"></div></div><div class="bval">$211</div></div>
+        <div class="barrow"><div class="blabel">Pastry waste</div><div class="bartrack"><div class="barfill" style="width:41%;background:var(--amber)"></div></div><div class="bval" style="color:var(--amber)">$200</div></div>
+      </div>
+      <a class="btn btn-primary btn-sm" style="margin-top:20px" data-go="/reports/sample">See the fixes for each →</a>
+    </div>
+
+    <div class="quick">
+      <a class="btn btn-ghost" data-go="/upload">Upload this week’s files</a>
+      <a class="btn btn-quiet" data-go="/reports">Report history</a>
+    </div>
+  </section>
+
+  <!-- UPLOAD -->
+  <section data-app="/upload">
+    <h1 class="greet" style="font-size:1.5rem">Upload last week’s numbers.</h1>
+    <p class="gsub" style="max-width:54ch;color:var(--muted);margin-top:.4rem">Add your supplier invoices, sales exports, roster reports or menu costing files. Leak will review them and prepare your weekly profit report.</p>
+    <p class="meta-line" style="margin-top:.7rem">This batch started 14 June, 8:51pm <span class="dotsep"></span> autosaved a minute ago <span class="dotsep"></span> 4 files added</p>
+
+    <div class="grid2" style="margin-top:22px;gap:1rem">
+      <div class="field"><label class="f">Batch name</label><input class="input" value="Week of 10 June"></div>
+      <div class="field"><label class="f">Week starting date</label><input class="input" type="date" value="2026-06-10"></div>
+    </div>
+
+    <div class="up-cats">
+      <div class="upcard has" data-up>
+        <div class="uh"><span class="un">Supplier invoices</span><span class="badge b-green"><span class="badge-dot"></span> 3 added</span></div>
+        <div class="ud">Milk, bacon, produce, dry goods.</div>
+        <div class="files">
+          <span class="fchip"><svg><use href="#check"/></svg> PFD INVOICE (1).pdf <span class="fsz">214 KB</span></span>
+          <span class="fchip"><svg><use href="#check"/></svg> bannister downs 8.6.pdf <span class="fsz">89 KB</span></span>
+          <span class="fchip err"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg> IMG_4821.HEIC <span class="fx">couldn’t read — try a clearer photo</span></span>
+        </div>
+      </div>
+      <div class="upcard has" data-up>
+        <div class="uh"><span class="un">POS sales report</span><span class="badge b-green"><span class="badge-dot"></span> 1 added</span></div>
+        <div class="ud">Daily sales and item mix from Lightspeed.</div>
+        <div class="files"><span class="fchip"><svg><use href="#check"/></svg> lightspeed_export_jun10-16.csv <span class="fsz">1.2 MB</span></span></div>
+      </div>
+      <div class="upcard has" data-up>
+        <div class="uh"><span class="un">Labour / roster report</span><span class="badge b-amber"><span class="badge-dot"></span> check</span></div>
+        <div class="ud">Rostered and actual hours from Deputy.</div>
+        <div class="files"><span class="fchip"><svg><use href="#check"/></svg> Roster wk24 FINAL v2.xlsx <span class="fsz">38 KB</span></span></div>
+        <div class="src"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/></svg> Thursday tab looks blank — Leak will estimate that day and flag it.</div>
+      </div>
+      <div class="upcard" data-up>
+        <div class="uh"><span class="un">Menu costing</span><span class="badge b-muted">Optional</span></div>
+        <div class="ud">Recipe costs, if you have them.</div>
+        <div class="files" style="color:var(--muted-2);font-size:.82rem">Not added — you uploaded these in May, we’ll reuse them.</div>
+      </div>
+    </div>
+    <div class="up-cats" style="grid-template-columns:1fr">
+      <div class="upcard" data-up>
+        <div class="uh"><span class="un">Other</span><span class="badge b-muted">PDF · CSV · XLSX · TXT</span></div>
+        <div class="ud">Anything else that helps explain your week. Drag a file or click to add.</div>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:18px"><label class="f">Notes for this week (optional)</label><textarea class="textarea" placeholder="e.g. Public holiday Monday, café closed Sunday for a private event.">Tues + Wed were dead — rained all week, don't read too much into the quiet lunches. Big school group Friday so bakery order was deliberately high. New casual started Sat, still training.</textarea></div>
+
+    <div class="up-note">You do not need perfect files. Leak will work with what you have and mark confidence clearly where data is incomplete.</div>
+
+    <div style="display:flex;gap:.7rem;flex-wrap:wrap;align-items:center">
+      <a class="btn btn-primary btn-lg" data-go="/analysis">Analyse 4 files →</a>
+      <a class="btn btn-quiet btn-lg" data-go="/dashboard">Cancel</a>
+      <span class="meta-line" style="margin-left:.3rem">Last week’s report took 3 minutes</span>
+    </div>
+  </section>
+
+  <!-- REPORT HISTORY -->
+  <section data-app="/reports">
+    <h1 class="greet" style="font-size:1.5rem">Report history</h1>
+    <p class="meta-line" style="margin-top:.6rem">9 reports since 14 April <span class="dotsep"></span> $11,890 of leaks found <span class="dotsep"></span> ~$2,340 recovered so far</p>
+    <div class="histlist">
+      <div class="histrow" data-go="/reports/sample">
+        <div class="hweek">Week starting 10 June<small>Latest · generated 15 Jun 6:04am · your note attached</small></div>
+        <div class="hcol"><div class="cl">Estimated leak</div><div class="hleak">$1,247</div></div>
+        <div class="hcol"><div class="cl">Biggest leak</div><span class="badge b-leak"><span class="badge-dot"></span> Labour</span></div>
+        <div class="hcol"><div class="cl">Confidence</div><span class="conf medium"><span class="bars"><i></i><i></i><i></i></span> Medium</span></div>
+        <div class="hview"><a class="btn btn-ghost btn-sm" data-go="/reports/sample">View report →</a></div>
+      </div>
+      <div class="histrow" data-go="/reports/sample">
+        <div class="hweek">Week starting 3 June<small>Generated 8 Jun 6:02am</small></div>
+        <div class="hcol"><div class="cl">Estimated leak</div><div class="hleak">$980</div></div>
+        <div class="hcol"><div class="cl">Biggest leak</div><span class="badge b-leak"><span class="badge-dot"></span> Supplier creep</span></div>
+        <div class="hcol"><div class="cl">Confidence</div><span class="conf medium"><span class="bars"><i></i><i></i><i></i></span> Medium</span></div>
+        <div class="hview"><a class="btn btn-ghost btn-sm" data-go="/reports/sample">View report →</a></div>
+      </div>
+      <div class="hist-gap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Week starting 27 May — no report (you were closed for the long weekend)</div>
+      <div class="histrow" data-go="/reports/sample">
+        <div class="hweek">Week starting 20 May<small>Generated 25 May 6:05am · ran twice</small></div>
+        <div class="hcol"><div class="cl">Estimated leak</div><div class="hleak">$1,430</div></div>
+        <div class="hcol"><div class="cl">Biggest leak</div><span class="badge b-leak"><span class="badge-dot"></span> Menu pricing</span></div>
+        <div class="hcol"><div class="cl">Confidence</div><span class="conf high"><span class="bars"><i></i><i></i><i></i></span> High</span></div>
+        <div class="hview"><a class="btn btn-ghost btn-sm" data-go="/reports/sample">View report →</a></div>
+      </div>
+      <div class="histrow" data-go="/reports/sample">
+        <div class="hweek">Week starting 13 May<small>Generated 18 May 6:03am · only POS uploaded</small></div>
+        <div class="hcol"><div class="cl">Estimated leak</div><div class="hleak">$760</div></div>
+        <div class="hcol"><div class="cl">Biggest leak</div><span class="badge b-leak"><span class="badge-dot"></span> Waste</span></div>
+        <div class="hcol"><div class="cl">Confidence</div><span class="conf low"><span class="bars"><i></i><i></i><i></i></span> Low</span></div>
+        <div class="hview"><a class="btn btn-ghost btn-sm" data-go="/reports/sample">View report →</a></div>
+      </div>
+      <div class="histrow" data-go="/reports/sample">
+        <div class="hweek">Week starting 6 May<small>Generated 11 May 6:01am</small></div>
+        <div class="hcol"><div class="cl">Estimated leak</div><div class="hleak">$1,615</div></div>
+        <div class="hcol"><div class="cl">Biggest leak</div><span class="badge b-leak"><span class="badge-dot"></span> Labour</span></div>
+        <div class="hcol"><div class="cl">Confidence</div><span class="conf high"><span class="bars"><i></i><i></i><i></i></span> High</span></div>
+        <div class="hview"><a class="btn btn-ghost btn-sm" data-go="/reports/sample">View report →</a></div>
+      </div>
+    </div>
+    <p class="meta-line" style="margin-top:18px;justify-content:center">Showing 6 of 9 · earlier reports are archived</p>
+  </section>
+
+  <!-- SETTINGS -->
+  <section data-app="/settings">
+    <h1 class="greet" style="font-size:1.5rem">Settings</h1>
+    <p class="gsub" style="color:var(--muted);margin-top:.4rem">Keep your café profile and targets accurate so reports stay sharp.</p>
+
+    <div class="set-sec"><div class="set-card">
+      <h3>Café profile</h3><div class="sd">The basics Leak uses to read your week. <span class="meta-line" style="display:inline">Last edited 14 May</span></div>
+      <div class="grid2"><div class="field"><label class="f">Café name</label><input class="input" value="Hearth & Co"></div><div class="field"><label class="f">Location</label><input class="input" value="Fremantle WA 6160"></div></div>
+      <div class="grid2"><div class="field"><label class="f">Opening days</label><input class="input" value="Tue–Sun (closed Mondays)"></div><div class="field" style="margin-bottom:0"><label class="f">Staff count</label><input class="input" type="number" value="14"></div></div>
+    </div></div>
+
+    <div class="set-sec"><div class="set-card">
+      <h3>Targets</h3><div class="sd">Leak measures your week against these. <span class="meta-line" style="display:inline">You raised food cost from 28% to 30% on 2 May after the dairy price rise.</span></div>
+      <div class="grid2"><div class="field" style="margin-bottom:0"><label class="f">Labour target %</label><input class="input" value="30%"></div><div class="field" style="margin-bottom:0"><label class="f">Food cost target %</label><input class="input" value="30%"></div></div>
+    </div></div>
+
+    <div class="set-sec"><div class="set-card">
+      <h3>Systems &amp; suppliers</h3><div class="sd">Helps Leak recognise your files. <span class="meta-line" style="display:inline">Last invoice read: PFD, 10 June.</span></div>
+      <div class="grid2"><div class="field"><label class="f">POS</label><input class="input" value="Lightspeed (K-series)"></div><div class="field"><label class="f">Rostering</label><input class="input" value="Deputy"></div></div>
+      <div class="grid2"><div class="field"><label class="f">Accounting</label><input class="input" value="Xero"></div><div class="field" style="margin-bottom:0"><label class="f">Main suppliers</label><input class="input" value="PFD, Bannister Downs Dairy, Mrs Mac's bakery, Galati fruit & veg"></div></div>
+    </div></div>
+
+    <div class="set-sec"><div class="set-card">
+      <h3>Email preferences</h3><div class="sd">When and where your report lands.</div>
+      <div class="grid2"><div class="field"><label class="f">Report email</label><input class="input" value="sam@hearthandco.com.au"></div><div class="field"><label class="f">Preferred report day</label><select class="select"><option>Monday</option><option>Tuesday</option><option>Sunday</option></select></div></div>
+      <div class="togrow"><div><div class="tt">Weekly report email</div><div class="td">Get your Leak Weekly in your inbox each Monday at 6am.</div></div><div class="toggle on" data-toggle></div></div>
+      <div class="togrow"><div><div class="tt">Copy my partner</div><div class="td">Also send to jess@hearthandco.com.au</div></div><div class="toggle on" data-toggle></div></div>
+      <div class="togrow"><div><div class="tt">Nudge me if I forget to upload</div><div class="td">A reminder Sunday night if no files are in yet.</div></div><div class="toggle" data-toggle></div></div>
+    </div></div>
+
+    <div class="set-sec"><div class="set-card" style="border-color:var(--leak-line)">
+      <h3>Your data</h3><div class="sd">Your data is private, never sold, and never used to train public AI models. You’re in control.</div>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap"><button class="btn btn-quiet" onclick="toast('Export started — we’ll email your data')">Export my data</button><button class="btn btn-danger" onclick="toast('This would delete all café data')">Delete all data</button></div>
+    </div></div>
+
+    <div style="margin-top:22px"><button class="btn btn-primary" onclick="toast('Settings saved')">Save changes</button></div>
+  </section>
+
+  <!-- BILLING -->
+  <section data-app="/billing">
+    <h1 class="greet" style="font-size:1.5rem">Billing</h1>
+    <p class="meta-line" style="margin-top:.6rem">Customer since 14 April 2026 <span class="dotsep"></span> 3 payments <span class="dotsep"></span> no failed charges</p>
+    <div style="margin-top:22px" class="billcard">
+      <div class="bill-top">
+        <div>
+          <span class="badge b-green" id="planBadge"><span class="badge-dot"></span> Active</span>
+          <div class="bill-plan" style="margin-top:.7rem">Leak Starter</div>
+          <div class="bill-price">$99/month · 1 café · Hearth &amp; Co</div>
+        </div>
+        <div class="conf high" style="font-size:.8rem;max-width:20ch;text-align:right">~$2,340 recovered so far — about 8× what you’ve paid.</div>
+      </div>
+      <div class="bill-rows">
+        <div class="bill-row"><span class="bk">Status</span><span class="bv" style="color:var(--green)">Active</span></div>
+        <div class="bill-row"><span class="bk">Payment method</span><span class="bv">Visa ···· 4242 · exp 09/27</span></div>
+        <div class="bill-row"><span class="bk">Next charge</span><span class="bv">$99.00 on 14 July 2026</span></div>
+        <div class="bill-row"><span class="bk">Billing email</span><span class="bv">sam@hearthandco.com.au</span></div>
+      </div>
+      <div class="bill-btns">
+        <button class="btn btn-ghost" onclick="toast('Opening billing portal…')">Manage billing</button>
+        <button class="btn btn-primary" onclick="toast('Upgrade to Pro — $199/mo')">Upgrade to Pro</button>
+        <button class="btn btn-danger" onclick="setPlan(false)">Cancel plan</button>
+      </div>
+    </div>
+
+    <div class="set-sec"><div class="set-card">
+      <h3>Payment history</h3><div class="sd">Receipts are emailed automatically.</div>
+      <table class="invtab">
+        <tr><td>14 Jun 2026</td><td>Leak Starter — monthly</td><td class="amt">$99.00</td><td class="lk"><span class="st">Paid</span></td><td class="lk"><a href="#" onclick="event.preventDefault();toast('Downloading receipt…')">Receipt</a></td></tr>
+        <tr><td>14 May 2026</td><td>Leak Starter — monthly</td><td class="amt">$99.00</td><td class="lk"><span class="st">Paid</span></td><td class="lk"><a href="#" onclick="event.preventDefault();toast('Downloading receipt…')">Receipt</a></td></tr>
+        <tr><td>14 Apr 2026</td><td>Leak Starter — first month</td><td class="amt">$99.00</td><td class="lk"><span class="st">Paid</span></td><td class="lk"><a href="#" onclick="event.preventDefault();toast('Downloading receipt…')">Receipt</a></td></tr>
+      </table>
+    </div></div>
+
+    <div class="set-sec"><div class="set-card">
+      <h3>What you get on Pro</h3><div class="sd">$199/month — worth it once you’re running two sites or want the monthly trend report.</div>
+      <div style="display:flex;flex-direction:column;gap:.6rem">
+        <div style="display:flex;gap:.6rem;font-size:.92rem;color:var(--ink-soft)"><span class="tick" style="width:16px;height:16px"><svg><use href="#check"/></svg></span> Deeper recommendations &amp; monthly trend report</div>
+        <div style="display:flex;gap:.6rem;font-size:.92rem;color:var(--ink-soft)"><span class="tick" style="width:16px;height:16px"><svg><use href="#check"/></svg></span> Multiple file batches per week</div>
+        <div style="display:flex;gap:.6rem;font-size:.92rem;color:var(--ink-soft)"><span class="tick" style="width:16px;height:16px"><svg><use href="#check"/></svg></span> Priority report review &amp; PDF export</div>
+      </div>
+    </div></div>
+  </section>
+
+</div><!-- /appPages -->
+
+<!-- ANALYSIS LOADING -->
+<main class="page" data-route="/analysis">
+  <div class="app" style="display:grid;grid-template-columns:1fr">
+    <div class="main">
+      <div class="analysis">
+        <div class="inner">
+          <div class="spinwrap">
+            <div class="ring"></div><div class="ring go"></div>
+            <div class="drop2"><svg class="drop" style="width:34px;height:34px"><use href="#drop"/></svg></div>
+          </div>
+          <h2 class="an-h">Reviewing your week.</h2>
+          <p class="an-sub">Leak is reviewing your café like an operator, not an accountant.</p>
+          <div class="an-steps" id="anSteps">
+            <div class="an-step" data-as><span class="box"><svg><use href="#check"/></svg></span> Reading files</div>
+            <div class="an-step" data-as><span class="box"><svg><use href="#check"/></svg></span> Extracting numbers</div>
+            <div class="an-step" data-as><span class="box"><svg><use href="#check"/></svg></span> Finding leaks</div>
+            <div class="an-step" data-as><span class="box"><svg><use href="#check"/></svg></span> Estimating dollar impact</div>
+            <div class="an-step" data-as><span class="box"><svg><use href="#check"/></svg></span> Writing recommendations</div>
+            <div class="an-step" data-as><span class="box"><svg><use href="#check"/></svg></span> Preparing Leak Weekly</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- LEAK WEEKLY REPORT -->
+<main class="page" data-route="/reports/sample">
+ <div class="app" id="reportApp">
+  <aside class="sidebar" id="reportSidebarMount"></aside>
+  <div class="main">
+   <header class="apphead">
+     <div style="display:flex;align-items:center;gap:.8rem">
+       <button class="burger" id="burger2"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+       <span class="ttl">Leak Weekly</span>
+     </div>
+     <div class="right"><span class="meta-line" style="margin-right:.2rem">Generated 6:04am</span><a class="btn btn-quiet btn-sm" data-go="/dashboard">Dashboard</a><div class="avatar">HC</div></div>
+   </header>
+   <div class="content">
+    <div class="report" id="reportBody">
+
+      <div class="locked" id="reportLocked" style="display:none">
+        <div class="lk"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+        <h3>Choose a plan to unlock Leak Weekly reports.</h3>
+        <p>Your report is ready. Activate your $99/month plan to see where your café is leaking money this week.</p>
+        <button class="btn btn-primary btn-lg" onclick="setPlan(true)">Choose a plan · $99/mo</button>
+      </div>
+
+      <div id="reportUnlocked">
+        <div class="rep-head">
+          <div>
+            <div class="rep-kicker"><svg class="drop" style="width:16px;height:16px"><use href="#drop"/></svg> Leak Weekly · No. 9</div>
+            <h1 class="rep-title">Profit review · week starting 10 June</h1>
+            <div class="rep-cafe">Hearth &amp; Co — Fremantle WA · 14 staff · $18,412 in sales last week</div>
+            <p class="meta-line" style="margin-top:.7rem">Generated Mon 15 June, 6:04am <span class="dotsep"></span> read 4 of 5 files <span class="dotsep"></span> re-run 9:12am after you re-uploaded the roster</p>
+          </div>
+          <div class="rep-actions">
+            <button class="btn btn-quiet btn-sm" onclick="toast('Report emailed to sam@hearthandco.com.au')">Email me</button>
+            <button class="btn btn-ghost btn-sm" onclick="toast('Preparing PDF…')">Download PDF</button>
+          </div>
+        </div>
+
+        <div class="headline">
+          <div class="lbl"><svg class="drop" style="width:15px;height:15px"><use href="#drop"/></svg> Estimated money leaking this week</div>
+          <div class="big"><span class="cur">$</span>1,247</div>
+          <div class="annual">≈ <b>$5,400 a month</b> <span>· $64,800 a year if nothing changes</span></div>
+          <div class="headline-foot">
+            <span class="conf medium" style="font-size:.84rem"><span class="bars"><i></i><i></i><i></i></span> Confidence: Medium</span>
+            <div class="spark-wrap">
+              <div class="spark" title="Recent weekly leaks">
+                <i style="height:60%"></i><i style="height:42%"></i><i style="height:74%"></i><i style="height:50%"></i><i class="now" style="height:64%"></i>
+              </div>
+              <div class="spark-cap">Last 5 weeks<br>$1,247 — up on last week (public-holiday wages)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="valueband">
+          <div class="vb-cell"><div class="vl">Leak costs you</div><div class="vv">$99<span style="font-size:.9rem;color:var(--muted);font-weight:500">/mo</span></div></div>
+          <div class="vb-op">→</div>
+          <div class="vb-cell"><div class="vl">Recoverable from this week’s actions</div><div class="vv green">$1,920<span style="font-size:.9rem;color:var(--muted);font-weight:500">/mo</span></div></div>
+          <div class="vb-op">=</div>
+          <div class="vb-cell"><div class="vl">Return on Leak</div><div class="vv">19×</div><div class="vb-roi">this month, if you act</div></div>
+        </div>
+        <div class="payoff"><svg class="drop" style="width:15px;height:15px"><use href="#drop"/></svg> <span>Fixing just the <b>labour leak</b> alone (~$220/week) covers your Leak subscription <b>more than twice over.</b></span></div>
+
+        <div class="dq">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg>
+          <div class="dqt"><b>Thursday is estimated.</b> Your roster file <span class="fn">Roster wk24 FINAL v2.xlsx</span> had a blank Thursday tab and <span class="fn">IMG_4821.HEIC</span> couldn’t be read. We’ve filled the gap from your usual Thursday pattern — that’s why labour confidence is Medium, not High. Re-upload a clean roster to firm it up.</div>
+        </div>
+
+        <div class="disclaimer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg> Leak estimates are based on uploaded files and your café profile targets. Treat this as operational guidance, not accounting advice.</div>
+
+        <div class="exec">
+          <h3><svg class="drop" style="width:16px;height:16px"><use href="#drop"/></svg> The week in one read</h3>
+          <p>Hearth &amp; Co had a solid sales week, but profit appears to be leaking through labour, supplier creep, menu pricing and pastry waste. The biggest issue is <b style="color:var(--ink)">labour sitting above target on quieter weekdays</b>, followed by a high-volume breakfast item that appears underpriced. Sort those two and you recover most of the leak — without touching service or quality.</p>
+          <div class="payoff" style="margin-top:16px"><span class="closed"><svg><use href="#check"/></svg> Closed</span> <span>The <b>flat white</b> you raised 50c three weeks ago is holding — volume’s flat, that leak is gone. Nice.</span></div>
+          <span class="voice">Reviewed the way an experienced operator would — not an accountant.</span>
+        </div>
+
+        <div class="leaks-head">
+          <span class="sec-label">Biggest leaks this week</span>
+          <span class="hint">Tap a card for the full breakdown</span>
+        </div>
+        <div class="leaklist">
+
+          <div class="leakcard open">
+            <div class="lc-bar"></div>
+            <div class="lc-head">
+              <div class="lc-rank">1</div>
+              <div class="lc-mid">
+                <div class="lc-type"><span class="badge b-leak"><span class="badge-dot"></span> Labour leak</span><span class="conf medium" style="font-size:.7rem"><span class="bars"><i></i><i></i><i></i></span> Medium</span></div>
+                <div class="lc-title">Tuesday &amp; Wednesday lunch appear overstaffed</div>
+              </div>
+              <div class="lc-impact"><div class="il">Impact</div><div class="iv">$486</div></div>
+              <svg class="lc-chev" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="lc-body"><div class="lc-inner"><div class="lc-grid">
+              <div class="lc-block"><div class="bl">What happened</div><p>Rostered hours stayed close to weekend levels, but lunch sales were noticeably softer on Tuesday and Wednesday.</p></div>
+              <div class="lc-block"><div class="bl">Why it matters</div><p>At this revenue level, labour needs to sit closer to 30%. Last week appears closer to <b style="color:var(--leak)">34%</b> — that gap is real money every quiet shift.</p></div>
+              <div class="lc-action"><div class="bl">Recommended action</div><p>Remove one FOH team member from Tuesday lunch and review Wednesday lunch coverage.</p></div>
+              <div class="lc-foot"><div class="lc-save">Estimated saving <b>$220/week</b></div><span class="badge b-green">Easy · Next roster cycle</span></div>
+              <div class="src"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5"/><path d="M7 3h7l5 5v13H7z"/></svg> From Deputy rostered hours vs Lightspeed lunch sales, Mon–Wed. Thursday estimated.</div>
+            </div></div></div>
+          </div>
+
+          <div class="leakcard">
+            <div class="lc-bar"></div>
+            <div class="lc-head">
+              <div class="lc-rank">2</div>
+              <div class="lc-mid">
+                <div class="lc-type"><span class="badge b-leak"><span class="badge-dot"></span> Menu pricing leak</span><span class="conf medium" style="font-size:.7rem"><span class="bars"><i></i><i></i><i></i></span> Medium</span></div>
+                <div class="lc-title">Bacon &amp; egg roll may be underpriced</div>
+              </div>
+              <div class="lc-impact"><div class="il">Impact</div><div class="iv">$350</div></div>
+              <svg class="lc-chev" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="lc-body"><div class="lc-inner"><div class="lc-grid">
+              <div class="lc-block"><div class="bl">What happened</div><p>This appears to be a high-volume item with limited margin room after protein, bread, sauce and labour.</p></div>
+              <div class="lc-block"><div class="bl">Why it matters</div><p>High-volume items should carry their weight. If they’re underpriced, they quietly drain margin every single day.</p></div>
+              <div class="lc-action"><div class="bl">Recommended action</div><p>Increase price by $1 and watch volume over the next two weeks. Demand on this item is typically price-insensitive.</p></div>
+              <div class="lc-foot"><div class="lc-save">Estimated saving <b>$280–$420/month</b></div><span class="badge b-green">Easy · This week</span></div>
+              <div class="src"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5"/><path d="M7 3h7l5 5v13H7z"/></svg> 612 sold last week — your second-best seller. Margin estimated; upload menu costing for exact figures.</div>
+            </div></div></div>
+          </div>
+
+          <div class="leakcard">
+            <div class="lc-bar"></div>
+            <div class="lc-head">
+              <div class="lc-rank">3</div>
+              <div class="lc-mid">
+                <div class="lc-type"><span class="badge b-leak"><span class="badge-dot"></span> Supplier leak</span><span class="conf medium" style="font-size:.7rem"><span class="bars"><i></i><i></i><i></i></span> Medium</span></div>
+                <div class="lc-title">Milk and bacon pricing has crept up</div>
+              </div>
+              <div class="lc-impact"><div class="il">Impact</div><div class="iv">$211</div></div>
+              <svg class="lc-chev" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="lc-body"><div class="lc-inner"><div class="lc-grid">
+              <div class="lc-block"><div class="bl">What happened</div><p>Supplier invoice pricing appears higher than previous benchmark pricing for key high-volume items.</p></div>
+              <div class="lc-block"><div class="bl">Why it matters</div><p>Small increases on daily-use products become expensive quickly — you buy these every week.</p></div>
+              <div class="lc-action"><div class="bl">Recommended action</div><p>Review milk and bacon pricing with your supplier, or request comparison pricing from an alternative.</p></div>
+              <div class="lc-foot"><div class="lc-save">Estimated saving <b>$80–$150/month</b></div><span class="badge b-amber">Medium · This week</span></div>
+              <div class="src"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5"/><path d="M7 3h7l5 5v13H7z"/></svg> Bannister Downs milk up 6% and PFD bacon up 4% vs your March–May invoices. Based on 4 of 5 invoices.</div>
+            </div></div></div>
+          </div>
+
+          <div class="leakcard">
+            <div class="lc-bar amber"></div>
+            <div class="lc-head">
+              <div class="lc-rank">4</div>
+              <div class="lc-mid">
+                <div class="lc-type"><span class="badge b-amber"><span class="badge-dot"></span> Waste leak</span><span class="conf low" style="font-size:.7rem"><span class="bars"><i></i><i></i><i></i></span> Low–Medium</span></div>
+                <div class="lc-title">Pastry order looks too high for weekday demand</div>
+              </div>
+              <div class="lc-impact"><div class="il">Impact</div><div class="iv">$200</div></div>
+              <svg class="lc-chev" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="lc-body"><div class="lc-inner"><div class="lc-grid">
+              <div class="lc-block"><div class="bl">What happened</div><p>Pastry order volume appears high compared with likely weekday sales.</p></div>
+              <div class="lc-block"><div class="bl">Why it matters</div><p>Pastry waste is easy to ignore because it feels small daily — but it compounds fast across a month.</p></div>
+              <div class="lc-action"><div class="bl">Recommended action</div><p>Reduce Monday to Wednesday pastry order by 15% and re-check next week’s sell-through.</p></div>
+              <div class="lc-foot"><div class="lc-save">Estimated saving <b>$45–$70/week</b></div><span class="badge b-green">Easy · Next supplier order</span></div>
+              <div class="src"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5"/><path d="M7 3h7l5 5v13H7z"/></svg> Lower confidence — estimated from bakery order qty vs pastry sales. No waste log uploaded, and you noted the Friday school group.</div>
+            </div></div></div>
+          </div>
+
+        </div>
+
+        <div class="actions">
+          <div class="act-top">
+            <div>
+              <span class="sec-label">Fix next week</span>
+              <h3 style="font-size:1.3rem;margin-top:.5rem">Four actions. Mostly easy.</h3>
+            </div>
+            <div class="act-tally"><div class="t">Recovering if you act</div><div class="v" id="tally">$0</div></div>
+          </div>
+          <div class="acts" id="acts">
+            <div class="act" data-save="220" data-unit="/wk">
+              <div class="cb"><svg><use href="#check"/></svg></div>
+              <div class="act-main"><div class="at">Reduce Tuesday lunch roster by one person</div><div class="act-meta"><span class="badge b-green">Easy</span><span class="badge b-muted">Next roster cycle</span></div></div>
+              <div class="act-save">$220/wk</div>
+            </div>
+            <div class="act" data-save="350" data-unit="/mo">
+              <div class="cb"><svg><use href="#check"/></svg></div>
+              <div class="act-main"><div class="at">Raise bacon &amp; egg roll by $1</div><div class="act-meta"><span class="badge b-green">Easy</span><span class="badge b-muted">This week</span></div></div>
+              <div class="act-save">$280–420/mo</div>
+            </div>
+            <div class="act" data-save="58" data-unit="/wk">
+              <div class="cb"><svg><use href="#check"/></svg></div>
+              <div class="act-main"><div class="at">Reduce weekday pastry order by 15%</div><div class="act-meta"><span class="badge b-green">Easy</span><span class="badge b-muted">Next supplier order</span></div></div>
+              <div class="act-save">$45–70/wk</div>
+            </div>
+            <div class="act" data-save="115" data-unit="/mo">
+              <div class="cb"><svg><use href="#check"/></svg></div>
+              <div class="act-main"><div class="at">Request updated supplier pricing on milk &amp; bacon</div><div class="act-meta"><span class="badge b-amber">Medium</span><span class="badge b-muted">This week</span></div></div>
+              <div class="act-save">$80–150/mo</div>
+            </div>
+          </div>
+          <p class="hint" style="margin-top:14px">Tick actions as you do them. Next week’s report checks whether each leak actually closed. <b style="color:var(--ink-soft);font-weight:500">Last week you did 3 of 4</b> — this week’s rise is mostly the one-off public-holiday wages, not a new problem.</p>
+        </div>
+
+        <div class="notes">
+          <h3>Owner notes</h3>
+          <p class="q">What happened this week that Leak should know? It factors your notes into next week’s read.</p>
+          <div class="note-prev">
+            <div class="nph"><span class="who">Sam</span> · added Sun 14 June, 8:53pm</div>
+            <div class="npb">Don't cut Tues/Wed staff off one bad week — it rained the whole time. Bakery order was high on purpose, had the school group in Friday. New casual (Mia) still training so Sat hours look heavy, that's normal for now.</div>
+          </div>
+          <textarea class="textarea" placeholder="Add another note for this week…">Going to trial the +$1 on the bacon &amp; egg roll from Thursday and see if anyone blinks.</textarea>
+          <div style="margin-top:14px;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="toast('Note saved — Leak will factor this in next week')">Save note</button><span class="meta-line">Notes are private to your café.</span></div>
+        </div>
+
+        <div class="rep-foot">
+          <button class="btn btn-primary" onclick="toast('Report emailed to sam@hearthandco.com.au')">Email report to me</button>
+          <button class="btn btn-ghost" onclick="toast('Preparing PDF…')">Download PDF</button>
+          <a class="btn btn-quiet" data-go="/dashboard">Back to dashboard</a>
+        </div>
+
+      </div><!-- /unlocked -->
+    </div>
+   </div>
+  </div>
+ </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var state = { plan:true };
+var APP_ROUTES = ["/dashboard","/upload","/reports","/settings","/billing"];
+var TITLES = {"/dashboard":"Dashboard","/upload":"Upload centre","/reports":"Report history","/settings":"Settings","/billing":"Billing"};
+
+function route(){
+  var path = location.hash.replace(/^#/,"") || "/";
+  document.body.classList.remove("nav-open");
+  document.querySelectorAll(".page").forEach(function(p){p.classList.remove("active")});
+  var isApp = APP_ROUTES.indexOf(path) !== -1;
+  document.body.classList.toggle("app-mode", isApp);
+  document.getElementById("marketing").style.display = (path==="/"||path==="") ? "" : "none";
+  if(isApp){
+    mountApp(path);
+    document.getElementById("appTitle").textContent = TITLES[path] || "Leak";
+    setActiveNav(path);
+    window.scrollTo(0,0);
+    return;
+  }
+  var page = document.querySelector('.page[data-route="'+path+'"]');
+  if(!page){ location.hash = "/"; return; }
+  page.classList.add("active");
+  window.scrollTo(0,0);
+  if(path==="/analysis") runAnalysis();
+  if(path==="/onboarding") resetOnboarding();
+  if(path==="/reports/sample") setupReport();
+}
+
+function mountApp(path){
+  var host = document.getElementById("appContent");
+  var src = document.querySelector('#appPages [data-app="'+path+'"]');
+  host.innerHTML = "";
+  if(src){ host.appendChild(src.cloneNode(true)); }
+  bindGo(host);
+}
+
+function setActiveNav(path){
+  document.querySelectorAll("#sbnav a").forEach(function(a){
+    var t = a.getAttribute("data-go");
+    a.classList.toggle("on", t===path || (path==="/reports" && t==="/reports"));
+  });
+}
+
+function bindGo(scope){
+  (scope||document).querySelectorAll("[data-go]").forEach(function(el){
+    if(el.__bound) return; el.__bound = true;
+    el.addEventListener("click", function(e){
+      e.preventDefault();
+      var to = el.getAttribute("data-go");
+      var scrollTo = el.getAttribute("data-scroll");
+      if(to==="/" && scrollTo){
+        if(location.hash.replace(/^#/,"")!=="/" && location.hash!==""){ location.hash="/"; setTimeout(function(){scrollEl(scrollTo)},120); }
+        else scrollEl(scrollTo);
+        return;
+      }
+      location.hash = to;
+    });
+  });
+}
+function scrollEl(id){ var el=document.getElementById(id); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); }
+
+window.addEventListener("hashchange", route);
+
+var anTimer;
+function runAnalysis(){
+  var steps = document.querySelectorAll("#anSteps .an-step");
+  steps.forEach(function(s){s.classList.remove("active","done")});
+  var i = 0;
+  if(anTimer) clearInterval(anTimer);
+  steps[0] && steps[0].classList.add("active");
+  anTimer = setInterval(function(){
+    if(i>0) steps[i-1].classList.remove("active"), steps[i-1].classList.add("done");
+    if(i<steps.length){ steps[i].classList.add("active"); i++; }
+    else {
+      clearInterval(anTimer);
+      steps[steps.length-1].classList.add("done");
+      setTimeout(function(){ if(location.hash.indexOf("analysis")>-1) location.hash="/reports/sample"; }, 650);
+    }
+  }, 850);
+}
+
+function resetOnboarding(){ showStep(1); }
+function showStep(n){
+  document.querySelectorAll('[data-step]').forEach(function(s){ s.style.display = (s.getAttribute("data-step")==String(n))?"":"none"; });
+  document.querySelectorAll('[data-dot]').forEach(function(d){ d.classList.toggle("on", Number(d.getAttribute("data-dot"))<=n); });
+}
+document.addEventListener("click",function(e){
+  if(e.target.closest("[data-ob-next]")){ var c=current(); showStep(Math.min(4,c+1)); window.scrollTo(0,0); }
+  if(e.target.closest("[data-ob-back]")){ var c=current(); showStep(Math.max(1,c-1)); window.scrollTo(0,0); }
+  var chip = e.target.closest("[data-chips] .chip"); if(chip) chip.classList.toggle("on");
+  var tg = e.target.closest("[data-toggle]"); if(tg) tg.classList.toggle("on");
+  var q = e.target.closest(".qitem button"); if(q){ q.parentElement.classList.toggle("open"); }
+  var up = e.target.closest("[data-up]"); if(up) up.classList.toggle("has");
+  var lh = e.target.closest(".lc-head"); if(lh) lh.parentElement.classList.toggle("open");
+  var act = e.target.closest(".act"); if(act){ act.classList.toggle("checked"); updateTally(); }
+});
+function current(){ var v=1; document.querySelectorAll('[data-step]').forEach(function(s){ if(s.style.display!=="none") v=Number(s.getAttribute("data-step")); }); return v; }
+
+function setupReport(){
+  var mount = document.getElementById("reportSidebarMount");
+  var realSb = document.querySelector(".app .sidebar");
+  if(mount && realSb){ mount.innerHTML = realSb.innerHTML; bindGo(mount);
+    mount.querySelectorAll(".sb-nav a").forEach(function(a){ a.classList.toggle("on", a.getAttribute("data-go")==="/reports/sample"); });
+  }
+  document.getElementById("reportLocked").style.display = state.plan ? "none":"block";
+  document.getElementById("reportUnlocked").style.display = state.plan ? "block":"none";
+  document.querySelectorAll("#acts .act").forEach(function(a){a.classList.remove("checked")});
+  updateTally();
+  bindGo(document.getElementById("reportApp"));
+}
+function updateTally(){
+  var monthly = 0;
+  document.querySelectorAll("#acts .act.checked").forEach(function(a){
+    var v = Number(a.getAttribute("data-save"));
+    var unit = a.getAttribute("data-unit");
+    monthly += (unit==="/wk") ? v*4.33 : v;
+  });
+  var el = document.getElementById("tally");
+  if(el) el.textContent = "$"+Math.round(monthly).toLocaleString()+ (monthly? "/mo":"");
+  if(el && monthly===0) el.textContent = "$0";
+}
+
+function setPlan(active){
+  state.plan = active;
+  toast(active ? "Plan activated — reports unlocked" : "Plan cancelled — reports locked");
+  var onReport = location.hash.indexOf("/reports/sample")>-1;
+  if(active){
+    if(onReport){ setupReport(); }
+    else { location.hash = "/reports/sample"; }
+  } else {
+    location.hash = "/reports/sample";
+    if(onReport) setupReport();
+  }
+}
+
+var toastTimer;
+function toast(msg){
+  var t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer=setTimeout(function(){t.classList.remove("show")},2400);
+}
+document.addEventListener("click",function(e){
+  if(e.target.closest("#burger")||e.target.closest("#burger2")) document.body.classList.toggle("nav-open");
+});
+
+bindGo(document);
+if(!location.hash) location.hash="/";
+route();
+</script>
+</body>
+</html>
