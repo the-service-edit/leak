@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Leak</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f3fa;--surface:#fff;--surface-2:#faf9fe;--surface-3:#efedf8;
+  --line:rgba(34,28,46,.10);--line-2:rgba(34,28,46,.16);
+  --ink:#211c2e;--ink-soft:#4b4559;--muted:#857f93;--muted-2:#a39db2;
+  --brand:#6d28d9;--brand-2:#7c3aed;--brand-soft:rgba(109,40,217,.08);--brand-line:rgba(109,40,217,.22);
+  --green:#199a66;--green-soft:rgba(25,154,102,.10);--green-line:rgba(25,154,102,.26);
+  --leak:#df5a36;--leak-soft:rgba(223,90,54,.09);--leak-line:rgba(223,90,54,.26);
+  --amber:#cf962a;--amber-soft:rgba(207,150,42,.13);
+  --shadow:0 1px 2px rgba(34,28,46,.05),0 12px 30px -16px rgba(34,28,46,.16);
+  --font:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1100px 640px at 82% -10%,rgba(124,58,237,.06),transparent 60%),var(--bg);
+  color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;line-height:1.55}
+h1,h2,h3,h4{margin:0;letter-spacing:-.02em}
+p{margin:0}a{color:inherit}
+.hide{display:none!important}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;border:1px solid transparent;border-radius:11px;padding:.78rem 1.15rem;font:inherit;font-size:.94rem;font-weight:650;cursor:pointer;transition:.15s}
+.btn:active{transform:translateY(1px)}.btn[disabled]{opacity:.5;cursor:default}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:0 10px 24px -12px rgba(109,40,217,.5)}
+.btn-primary:hover{background:var(--brand-2)}
+.btn-ghost{background:var(--surface);color:var(--ink);border-color:var(--line-2)}
+.btn-ghost:hover{background:var(--surface-2)}
+.btn-block{width:100%}.btn-sm{padding:.5rem .85rem;font-size:.85rem;border-radius:9px}
+.in,.sel,.ta{width:100%;background:#fff;border:1px solid var(--line-2);color:var(--ink);border-radius:10px;padding:.72rem .85rem;font:inherit;font-size:.95rem}
+.in:focus,.sel:focus,.ta:focus{outline:none;border-color:var(--brand-line);box-shadow:0 0 0 3px rgba(124,58,237,.1)}
+.ta{resize:vertical;min-height:80px;line-height:1.5}
+.fl{display:block;font-size:.78rem;font-weight:600;color:var(--ink-soft);margin:0 0 .35rem}
+.field{margin-bottom:1rem}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:520px){.grid2{grid-template-columns:1fr}}
+.brand{display:flex;align-items:center;gap:.55rem;font-weight:800;font-size:1.2rem;letter-spacing:-.03em}
+.drop{width:20px;height:20px}
+.muted{color:var(--muted)}.small{font-size:.85rem}
+.badge{display:inline-flex;align-items:center;gap:.4rem;font-size:.74rem;font-weight:700;padding:.28rem .65rem;border-radius:999px;border:1px solid var(--line-2)}
+.b-green{color:var(--green);background:var(--green-soft);border-color:var(--green-line)}
+.b-amber{color:#9a7218;background:var(--amber-soft);border-color:rgba(207,150,42,.3)}
+.b-muted{color:var(--muted);background:var(--surface-2)}
+.msg{margin-top:1rem;padding:.8rem 1rem;border-radius:11px;font-size:.9rem;display:none}
+.msg.ok{display:block;background:var(--green-soft);border:1px solid var(--green-line);color:var(--green)}
+.msg.err{display:block;background:var(--leak-soft);border:1px solid var(--leak-line);color:var(--leak)}
+.spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--brand);animation:spin 1s linear infinite;margin:80px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* auth / centered card */
+.center{min-height:100vh;display:grid;place-items:center;padding:32px 18px}
+.card{width:100%;max-width:440px;background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:34px}
+.card.wide{max-width:600px}
+.center .brand{justify-content:center;margin-bottom:12px}
+.h{font-size:1.5rem;text-align:center}.sub{text-align:center;color:var(--muted);font-size:.95rem;margin:.5rem 0 1.6rem;line-height:1.5}
+.cfgwarn{max-width:540px;margin:18px auto 0;background:var(--amber-soft);border:1px solid rgba(207,150,42,.3);color:#7a5a12;border-radius:12px;padding:14px 16px;font-size:.85rem;line-height:1.5}
+
+/* app shell */
+.app{display:none;min-height:100vh}
+.topbar{background:linear-gradient(90deg,var(--brand),var(--brand-2));color:#fff;height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:20}
+.topbar .brand{color:#fff;font-size:1.1rem}
+.topbar .who{display:flex;align-items:center;gap:12px;font-size:.85rem}
+.nav{display:flex;gap:4px;background:#fff;border-bottom:1px solid var(--line);padding:0 14px;position:sticky;top:60px;z-index:10;overflow-x:auto}
+.nav a{padding:.85rem .9rem;font-size:.9rem;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.nav a.on{color:var(--brand);border-bottom-color:var(--brand)}
+.wrap{max-width:780px;margin:0 auto;padding:28px 18px 80px}
+.page{display:none}.page.on{display:block;animation:fade .3s ease}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1}}
+.h1{font-size:1.5rem;font-weight:800}.lead{color:var(--muted);margin-top:.3rem}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:24px;margin-top:18px}
+.statusrow{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.kicker{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:700}
+
+/* upload cards */
+.upgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+@media(max-width:560px){.upgrid{grid-template-columns:1fr}}
+.upcard{border:1px dashed var(--line-2);border-radius:13px;padding:16px;cursor:pointer;transition:.15s;background:var(--surface)}
+.upcard:hover{border-color:var(--brand-line);background:var(--surface-2)}
+.upcard.has{border-style:solid;border-color:var(--green-line)}
+.upcard .un{font-weight:600;font-size:.95rem}.upcard .ud{font-size:.82rem;color:var(--muted);margin-top:.25rem}
+.fchip{display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:var(--ink-soft);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:.4rem .55rem;margin-top:6px}
+.fchip .fsz{margin-left:auto;color:var(--muted-2);font-size:.74rem}
+
+/* report */
+.report .headline{background:#fff;border:1px solid var(--leak-line);border-radius:18px;padding:26px;margin-top:16px}
+.report .lbl{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.report .big{font-size:clamp(2.6rem,9vw,4rem);font-weight:800;letter-spacing:-.04em;line-height:.95;margin:.3rem 0}
+.report .big .cur{color:var(--leak);font-size:.42em;vertical-align:.72em}
+.report .annual{color:var(--leak);font-weight:600;font-size:.95rem}
+.conf{display:inline-flex;align-items:center;gap:.45rem;font-weight:700;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.conf:before{content:"";width:7px;height:7px;border-radius:99px;background:var(--muted-2)}
+.conf.high:before{background:var(--green)}.conf.medium:before{background:var(--amber)}.conf.low:before{background:var(--leak)}
+.exec{margin-top:18px;color:var(--ink-soft);font-size:1.02rem;line-height:1.6}
+.seclabel{font-size:.72rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2);margin:24px 0 10px}
+.leak{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:10px}
+.leak:first-of-type{border-color:var(--leak-line)}
+.leak .top{display:flex;gap:12px;align-items:flex-start}
+.leak .rank{flex:0 0 auto;width:26px;height:26px;border-radius:8px;background:var(--leak-soft);color:var(--leak);font-weight:800;display:grid;place-items:center;font-size:.85rem}
+.leak .ttl{font-weight:700;font-size:1.05rem;margin-top:.4rem}
+.leak .imp{margin-left:auto;text-align:right}.leak .imp .iv{font-size:1.3rem;font-weight:800;color:var(--leak)}
+.leak .act{margin-top:12px;background:var(--green-soft);border:1px solid var(--green-line);border-radius:10px;padding:12px 14px;color:#14794f;font-size:.94rem}
+.histrow{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:14px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.histrow:last-child{border-bottom:none}
+.lk-card{text-align:center;padding:30px}
+.lk-card .lk{width:48px;height:48px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line-2);display:grid;place-items:center;margin:0 auto 14px;color:var(--muted)}
+.steps-dots{display:flex;gap:.5rem;margin-bottom:20px}.steps-dots i{flex:1;height:3px;border-radius:9px;background:var(--surface-3)}.steps-dots i.on{background:var(--brand)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><symbol id="drop" viewBox="0 0 24 24"><path d="M12 2.5c3.6 4.3 6.5 8 6.5 11.4A6.5 6.5 0 1 1 5.5 13.9C5.5 10.5 8.4 6.8 12 2.5z" fill="currentColor"/></symbol></svg>
+
+<!-- BOOT -->
+<div id="boot" class="center"><div class="spinner"></div></div>
+
+<!-- LOGIN -->
+<div id="login" class="center hide"><div>
+  <div class="card">
+    <div class="brand" style="color:var(--brand)"><svg class="drop"><use href="#drop"/></svg> Leak</div>
+    <h2 class="h">Sign in</h2>
+    <p class="sub">Weekly profit reviews for your café. Enter your email and we’ll send a secure sign-in link — no password.</p>
+    <form id="loginForm">
+      <input class="in" id="email" type="email" placeholder="you@yourcafe.com" autocomplete="email" required>
+      <button class="btn btn-primary btn-block" id="loginBtn" style="margin-top:12px">Email me a sign-in link</button>
+    </form>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+  <div class="cfgwarn hide" id="cfgwarn">⚠️ Not connected yet — paste your Supabase URL and anon key into the CONFIG block at the bottom of app.html.</div>
+</div></div>
+
+<!-- ONBOARDING -->
+<div id="onboarding" class="center hide"><div class="card wide">
+  <div class="brand" style="color:var(--brand);margin-bottom:14px"><svg class="drop"><use href="#drop"/></svg> Leak</div>
+  <div class="steps-dots"><i class="on" data-d="1"></i><i data-d="2"></i><i data-d="3"></i></div>
+  <form id="obForm">
+    <div class="ob-step" data-s="1">
+      <h2 class="h" style="text-align:left">Tell us about your café</h2>
+      <p class="sub" style="text-align:left">So your reviews are measured against the right targets.</p>
+      <div class="grid2"><div class="field"><label class="fl">Café name</label><input class="in" id="ob-name" required></div>
+      <div class="field"><label class="fl">Location</label><input class="in" id="ob-loc" placeholder="Fremantle WA"></div></div>
+      <div class="grid2"><div class="field"><label class="fl">Opening days</label><input class="in" id="ob-days" placeholder="Tue–Sun"></div>
+      <div class="field"><label class="fl">Number of staff</label><input class="in" id="ob-staff" type="number" placeholder="14"></div></div>
+      <div class="field"><label class="fl">Average weekly sales ($)</label><input class="in" id="ob-rev" type="number" placeholder="18400"></div>
+    </div>
+    <div class="ob-step hide" data-s="2">
+      <h2 class="h" style="text-align:left">Your targets</h2>
+      <p class="sub" style="text-align:left">Most independent cafés aim for around 30% each. Adjust if yours differ.</p>
+      <div class="grid2"><div class="field"><label class="fl">Labour target %</label><input class="in" id="ob-lab" type="number" value="30"></div>
+      <div class="field"><label class="fl">Food cost target %</label><input class="in" id="ob-food" type="number" value="30"></div></div>
+      <div class="field"><label class="fl">Rough monthly fixed costs ($) — rent, power, insurance, loan (optional)</label><input class="in" id="ob-fixed" type="number" placeholder="9000"></div>
+    </div>
+    <div class="ob-step hide" data-s="3">
+      <h2 class="h" style="text-align:left">What you use</h2>
+      <p class="sub" style="text-align:left">Helps us read your files. Nothing connects automatically.</p>
+      <div class="grid2"><div class="field"><label class="fl">POS</label><input class="in" id="ob-pos" placeholder="Lightspeed"></div>
+      <div class="field"><label class="fl">Rostering</label><input class="in" id="ob-roster" placeholder="Deputy"></div></div>
+      <div class="grid2"><div class="field"><label class="fl">Accounting</label><input class="in" id="ob-acct" placeholder="Xero"></div>
+      <div class="field"><label class="fl">Main suppliers</label><input class="in" id="ob-supp" placeholder="PFD, Bannister Downs"></div></div>
+    </div>
+    <div class="msg" id="obMsg"></div>
+    <div style="display:flex;justify-content:space-between;margin-top:20px;gap:1rem">
+      <button type="button" class="btn btn-ghost" id="obBack" style="visibility:hidden">← Back</button>
+      <button type="button" class="btn btn-primary" id="obNext">Continue →</button>
+    </div>
+  </form>
+</div></div>
+
+<!-- APP -->
+<div id="appShell" class="app">
+  <div class="topbar">
+    <div class="brand"><svg class="drop"><use href="#drop"/></svg> Leak</div>
+    <div class="who"><span id="cafeNm"></span><button class="btn btn-ghost btn-sm" id="logout">Log out</button></div>
+  </div>
+  <div class="nav" id="nav">
+    <a data-p="dashboard" class="on">Dashboard</a>
+    <a data-p="upload">Upload</a>
+    <a data-p="reports">Reports</a>
+    <a data-p="billing">Billing</a>
+    <a data-p="settings">Settings</a>
+  </div>
+  <div class="wrap">
+    <section class="page on" id="p-dashboard"></section>
+    <section class="page" id="p-upload"></section>
+    <section class="page" id="p-reports"></section>
+    <section class="page" id="p-billing"></section>
+    <section class="page" id="p-settings"></section>
+  </div>
+</div>
+
+<input type="file" id="filePicker" multiple accept=".pdf,.csv,.xlsx,.xls,.txt,.png,.jpg,.jpeg,.heic" style="display:none">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* =====================================================================
+   CONFIG — paste your Supabase details (Project Settings → API)
+   And your Stripe Payment Link URLs (one per plan).
+   ===================================================================== */
+const SUPABASE_URL = "https://ovkjajxotxyhirwdbbsh.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92a2phanhvdHh5aGlyd2RiYnNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjg5MzksImV4cCI6MjA5NzkwNDkzOX0.znrSsIKPkwsKXcrUyG23iOmnyoeQPGA7ywKS2s9ro5M";
+const STRIPE_STARTER = "https://buy.stripe.com/YOUR-STARTER-LINK";
+const STRIPE_PRO     = "https://buy.stripe.com/YOUR-PRO-LINK";
+/* ===================================================================== */
+
+const $=function(s){return document.querySelector(s);};
+function show(id){['boot','login','onboarding','appShell'].forEach(function(x){document.getElementById(x).classList.toggle('hide',x!==id&&x!=='appShell');});
+  document.getElementById('appShell').style.display=(id==='appShell')?'block':'none';
+  if(id!=='appShell'){document.getElementById('appShell').classList.add('hide');}}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function money(n){return (Number(n)||0).toLocaleString();}
+function cfgOK(){return SUPABASE_URL.indexOf('YOUR-PROJECT')===-1 && SUPABASE_ANON_KEY.indexOf('YOUR-ANON')===-1;}
+
+var sb=null, S={user:null,cafe:null,sub:null};
+if(cfgOK()){ sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{detectSessionInUrl:true,persistSession:true}}); }
+else { document.getElementById('cfgwarn').classList.remove('hide'); }
+
+/* ---------- auth ---------- */
+$('#loginForm').addEventListener('submit',async function(e){
+  e.preventDefault();
+  if(!sb){msg('loginMsg','Not connected yet — see note below.',0);return;}
+  var email=$('#email').value.trim();var b=$('#loginBtn');b.disabled=true;b.textContent='Sending…';
+  var r=await sb.auth.signInWithOtp({email:email,options:{emailRedirectTo:location.href.split('#')[0]}});
+  b.disabled=false;b.textContent='Email me a sign-in link';
+  if(r.error)msg('loginMsg',r.error.message,0); else msg('loginMsg','Check your inbox — link sent to '+email+'.',1);
+});
+$('#logout').addEventListener('click',async function(){await sb.auth.signOut();location.reload();});
+function msg(id,t,ok){var e=document.getElementById(id);e.textContent=t;e.className='msg '+(ok?'ok':'err');}
+
+async function boot(){
+  if(!sb){show('login');return;}
+  var s=(await sb.auth.getSession()).data.session;
+  if(!s){show('login');return;}
+  await afterLogin(s.user);
+  sb.auth.onAuthStateChange(function(_e,sess){ if(!sess){location.reload();} });
+}
+async function afterLogin(user){
+  S.user=user;
+  var c=await sb.from('cafes').select('*').limit(1);
+  if(c.error){show('login');return;}
+  if(!c.data||!c.data.length){show('onboarding');return;}
+  S.cafe=c.data[0];
+  var sub=await sb.from('subscriptions').select('*').eq('cafe_id',S.cafe.id).maybeSingle();
+  S.sub=sub.data||null;
+  $('#cafeNm').textContent=S.cafe.name;
+  show('appShell');
+  go('dashboard');
+}
+
+/* ---------- onboarding ---------- */
+var obStep=1;
+$('#obNext').addEventListener('click',async function(){
+  if(obStep<3){ obStep++; paintOb(); return; }
+  // submit
+  if(!$('#ob-name').value.trim()){obStep=1;paintOb();msg('obMsg','Please add your café name.',0);return;}
+  var b=this;b.disabled=true;b.textContent='Setting up…';
+  var cafe={owner_email:S.user.email.toLowerCase(),name:$('#ob-name').value.trim(),location:$('#ob-loc').value.trim(),
+    opening_days:$('#ob-days').value.trim(),staff_count:int($('#ob-staff').value),avg_weekly_revenue:num($('#ob-rev').value),
+    labour_target_pct:num($('#ob-lab').value)||30,food_target_pct:num($('#ob-food').value)||30,
+    fixed_costs:{monthly:num($('#ob-fixed').value)||null},
+    systems:{pos:$('#ob-pos').value.trim(),rostering:$('#ob-roster').value.trim(),accounting:$('#ob-acct').value.trim(),suppliers:$('#ob-supp').value.trim()}};
+  var ins=await sb.from('cafes').insert(cafe).select().single();
+  if(ins.error){b.disabled=false;b.textContent='Finish →';msg('obMsg',ins.error.message,0);return;}
+  S.cafe=ins.data;
+  await sb.from('subscriptions').insert({cafe_id:S.cafe.id,plan:'Starter',status:'trialing'});
+  S.sub={status:'trialing',plan:'Starter'};
+  $('#cafeNm').textContent=S.cafe.name; show('appShell'); go('dashboard');
+});
+$('#obBack').addEventListener('click',function(){if(obStep>1){obStep--;paintOb();}});
+function paintOb(){
+  document.querySelectorAll('.ob-step').forEach(function(s){s.classList.toggle('hide',s.getAttribute('data-s')!=String(obStep));});
+  document.querySelectorAll('.steps-dots i').forEach(function(i){i.classList.toggle('on',Number(i.getAttribute('data-d'))<=obStep);});
+  $('#obBack').style.visibility=obStep>1?'visible':'hidden';
+  $('#obNext').textContent=obStep<3?'Continue →':'Finish →';
+}
+function int(v){v=parseInt(v,10);return isNaN(v)?null:v;}
+function num(v){v=parseFloat(String(v).replace(/[^0-9.]/g,''));return isNaN(v)?null:v;}
+
+/* ---------- nav ---------- */
+function go(p){
+  document.querySelectorAll('#nav a').forEach(function(a){a.classList.toggle('on',a.getAttribute('data-p')===p);});
+  document.querySelectorAll('.page').forEach(function(s){s.classList.toggle('on',s.id==='p-'+p);});
+  window.scrollTo(0,0);
+  if(p==='dashboard')renderDashboard();
+  if(p==='upload')renderUpload();
+  if(p==='reports')renderReports();
+  if(p==='billing')renderBilling();
+  if(p==='settings')renderSettings();
+}
+document.getElementById('nav').addEventListener('click',function(e){var a=e.target.closest('a');if(a)go(a.getAttribute('data-p'));});
+
+function planActive(){return S.sub && (S.sub.status==='active'||S.sub.status==='trialing');}
+
+/* ---------- dashboard ---------- */
+async function renderDashboard(){
+  var el=$('#p-dashboard');el.innerHTML='<div class="spinner"></div>';
+  var rep=await sb.from('reports').select('*').eq('cafe_id',S.cafe.id).order('week_starting',{ascending:false}).limit(1);
+  var latest=(rep.data&&rep.data[0])||null;
+  var statusBadge = S.sub? (S.sub.status==='active'?'<span class="badge b-green">● Active</span>':
+    S.sub.status==='trialing'?'<span class="badge b-amber">● Free trial</span>':'<span class="badge b-muted">● No plan</span>') : '<span class="badge b-muted">● No plan</span>';
+  var h='<div class="statusrow"><div><h1 class="h1">Good morning</h1><p class="lead">'+esc(S.cafe.name)+(S.cafe.location?' · '+esc(S.cafe.location):'')+'</p></div>'+statusBadge+'</div>';
+  if(latest && planActive()){
+    h+='<div class="panel"><div class="kicker">Your latest review</div>'+
+       '<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;margin-top:10px">'+
+       '<div><div style="font-size:2.2rem;font-weight:800;letter-spacing:-.03em"><span style="color:var(--leak);font-size:.55em;vertical-align:.5em">$</span>'+money(latest.estimated_leak)+'</div>'+
+       '<div class="muted small">leaking · '+esc(latest.week_label)+'</div></div>'+
+       '<button class="btn btn-primary" onclick="go(\'reports\')">Read it →</button></div></div>';
+  } else if(latest && !planActive()){
+    h+='<div class="panel lk-card"><div class="lk"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>'+
+       '<h3>Your report is ready</h3><p class="muted" style="margin:.5rem 0 1.2rem">Choose a plan to unlock it.</p><button class="btn btn-primary" onclick="go(\'billing\')">Choose a plan</button></div>';
+  } else {
+    h+='<div class="panel"><div class="kicker">Getting started</div>'+
+       '<p style="margin-top:10px;font-size:1.05rem">Upload last week’s numbers and we’ll have your first profit review back within a few days — then every Monday after that.</p>'+
+       '<button class="btn btn-primary" style="margin-top:16px" onclick="go(\'upload\')">Upload last week’s files →</button></div>';
+  }
+  el.innerHTML=h;
+}
+
+/* ---------- upload ---------- */
+var UP={week:'',files:{}};
+function renderUpload(){
+  UP={week:defaultWeek(),files:{}};
+  var cats=[['supplier','Supplier invoices','Milk, coffee, produce, bakery'],['pos','POS sales report','Daily sales + item mix'],
+    ['roster','Roster / wages','Rostered + actual hours'],['other','Anything else','Notes, photos, menu costings']];
+  var h='<h1 class="h1">Upload last week’s numbers</h1><p class="lead">Drop in what you’ve got. You don’t need perfect files — we’ll mark anything unclear.</p>'+
+    '<div class="panel"><div class="field"><label class="fl">Week starting</label><input class="in" id="up-week" type="date" value="'+UP.week+'"></div>'+
+    '<div class="upgrid">'+cats.map(function(c){return '<div class="upcard" data-cat="'+c[0]+'"><div class="un">'+c[1]+'</div><div class="ud">'+c[2]+'</div><div class="files" data-files="'+c[0]+'"></div></div>';}).join('')+'</div>'+
+    '<div class="field" style="margin-top:14px"><label class="fl">Anything we should know? (rain, public holiday, school holidays, a big function…)</label><textarea class="ta" id="up-notes" placeholder="e.g. Rained all week so Tues/Wed were quiet — that’s weather, not staffing."></textarea></div>'+
+    '<div class="msg" id="upMsg"></div>'+
+    '<button class="btn btn-primary btn-block" id="upSubmit" style="margin-top:6px">Send my files for review</button>'+
+    '<p class="muted small" style="text-align:center;margin-top:12px">We’ll have your review ready within a few days — and every Monday from here.</p></div>';
+  $('#p-upload').innerHTML=h;
+  $('#up-week').addEventListener('change',function(){UP.week=this.value;});
+  $('#upSubmit').addEventListener('click',submitUpload);
+}
+function defaultWeek(){var d=new Date();d.setDate(d.getDate()-d.getDay()+1-7);return d.toISOString().slice(0,10);}
+document.querySelector('#p-upload')&&0;
+document.addEventListener('click',function(e){
+  var u=e.target.closest('.upcard'); if(u && document.getElementById('p-upload').classList.contains('on')){ window.__cat=u.getAttribute('data-cat'); var fp=$('#filePicker');fp.value='';fp.click(); }
+});
+$('#filePicker').addEventListener('change',function(){
+  var cat=window.__cat; if(!cat||!this.files.length)return;
+  UP.files[cat]=UP.files[cat]||[]; var box=document.querySelector('[data-files="'+cat+'"]');
+  for(var i=0;i<this.files.length;i++){var f=this.files[i];UP.files[cat].push(f);
+    box.innerHTML+='<span class="fchip">✓ '+esc(f.name)+'<span class="fsz">'+sz(f.size)+'</span></span>';}
+  document.querySelector('[data-cat="'+cat+'"]').classList.add('has');
+});
+function sz(b){return b<1048576?Math.max(1,Math.round(b/1024))+' KB':(b/1048576).toFixed(1)+' MB';}
+async function submitUpload(){
+  var any=Object.keys(UP.files).some(function(k){return UP.files[k]&&UP.files[k].length;});
+  if(!any){msg('upMsg','Add at least one file first.',0);return;}
+  var b=$('#upSubmit');b.disabled=true;b.textContent='Uploading…';
+  var week=$('#up-week').value||UP.week; var uploaded=[];
+  try{
+    for(var cat in UP.files){ for(var i=0;i<UP.files[cat].length;i++){var f=UP.files[cat][i];
+      var path=S.cafe.id+'/'+week+'/'+cat+'-'+Date.now()+'-'+f.name.replace(/[^\w.\-]/g,'_');
+      var up=await sb.storage.from('cafe-files').upload(path,f);
+      if(up.error)throw up.error; uploaded.push({path:path,label:cat,size:f.size});
+    }}
+    var row={cafe_id:S.cafe.id,week_starting:week,status:'ready',files:uploaded,context:{notes:$('#up-notes').value.trim()}};
+    var r=await sb.from('weekly_inputs').upsert(row,{onConflict:'cafe_id,week_starting'}).select('id').single();
+    if(r.error)throw r.error;
+    // fire the automated engine — it reads the files, builds the report, and publishes it
+    try{ sb.functions.invoke('analyze-report',{body:{weekly_input_id:r.data.id}}); }catch(_){}
+    b.textContent='Sent ✓'; msg('upMsg','Got it — your review is being prepared and will appear under Reports shortly.',1);
+  }catch(err){ b.disabled=false;b.textContent='Send my files for review'; msg('upMsg',(err&&err.message)||'Upload failed.',0); }
+}
+
+/* ---------- reports ---------- */
+async function renderReports(){
+  var el=$('#p-reports');el.innerHTML='<div class="spinner"></div>';
+  if(!planActive()){
+    el.innerHTML='<div class="panel lk-card"><div class="lk"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div><h3>Choose a plan to unlock your reviews</h3><p class="muted" style="margin:.5rem 0 1.2rem">$99/month, cancel anytime.</p><button class="btn btn-primary" onclick="go(\'billing\')">See plans</button></div>';
+    return;
+  }
+  var r=await sb.from('reports').select('*').eq('cafe_id',S.cafe.id).order('week_starting',{ascending:false});
+  var reps=r.data||[];
+  if(!reps.length){el.innerHTML='<h1 class="h1">Your reviews</h1><div class="panel"><p class="muted">No reviews yet — your first one will appear here once it’s ready. Upload last week’s files to get started.</p><button class="btn btn-primary" style="margin-top:14px" onclick="go(\'upload\')">Upload files →</button></div>';return;}
+  var h='<h1 class="h1">Your reviews</h1><div class="panel" id="histbox"><div class="kicker">All weeks</div>';
+  reps.forEach(function(rp,i){h+='<div class="histrow" data-i="'+i+'"><div><div style="font-weight:600">'+esc(rp.week_label)+'</div><div class="muted small">'+esc(rp.confidence||'')+' confidence</div></div><div style="font-weight:800;color:var(--leak)">$'+money(rp.estimated_leak)+'</div></div>';});
+  h+='</div><div id="repView"></div>';
+  el.innerHTML=h;
+  el.querySelector('#histbox').addEventListener('click',function(e){var row=e.target.closest('.histrow');if(row)viewReport(reps[+row.getAttribute('data-i')]);});
+  viewReport(reps[0]);
+}
+function viewReport(rp){
+  var d=rp.data||{}; var conf=(rp.confidence||'Medium').toLowerCase().indexOf('high')>-1?'high':(rp.confidence||'').toLowerCase().indexOf('low')>-1?'low':'medium';
+  var h='<div class="report"><div class="headline"><div class="lbl">Estimated money leaking — '+esc(rp.week_label)+'</div>'+
+    '<div class="big"><span class="cur">$</span>'+money(rp.estimated_leak)+'</div>'+
+    (d.annual?'<div class="annual">≈ '+esc(d.annual)+'</div>':'')+
+    '<div style="margin-top:14px"><span class="conf '+conf+'">Confidence: '+esc(rp.confidence||'Medium')+'</span></div></div>';
+  if(rp.summary)h+='<p class="exec">'+esc(rp.summary)+'</p>';
+  var leaks=d.leaks||[];
+  if(leaks.length){h+='<div class="seclabel">Biggest leaks this week</div>';
+    leaks.forEach(function(l,i){h+='<div class="leak"><div class="top"><div class="rank">'+(i+1)+'</div><div style="flex:1"><span class="badge b-muted" style="color:var(--leak)">'+esc(l.type||'Leak')+'</span><div class="ttl">'+esc(l.title||'')+'</div></div><div class="imp"><div class="muted small">Impact</div><div class="iv">$'+money(l.impact)+'</div></div></div>'+
+      (l.action?'<div class="act"><b>What I’d do:</b> '+esc(l.action)+'</div>':'')+'</div>';});
+  }
+  var acts=d.actions||[];
+  if(acts.length){h+='<div class="panel"><h3 style="font-size:1.1rem">Fix next week</h3><ul style="margin:12px 0 0;padding-left:1.1rem;line-height:1.8">'+acts.map(function(a){return '<li>'+esc(a)+'</li>';}).join('')+'</ul></div>';}
+  h+='<p class="muted small" style="margin-top:18px">Operational guidance based on the numbers you shared — not accounting advice. Private to your café.</p></div>';
+  $('#repView').innerHTML=h; window.scrollTo({top:200,behavior:'smooth'});
+}
+
+/* ---------- billing ---------- */
+function renderBilling(){
+  var st=S.sub?S.sub.status:'none';
+  var h='<h1 class="h1">Billing</h1><p class="lead">Simple monthly plans. Cancel anytime.</p>'+
+   '<div class="panel"><div class="statusrow"><div><div class="kicker">Current</div><div style="font-size:1.3rem;font-weight:800;margin-top:6px">'+(S.sub?esc(S.sub.plan||'Starter'):'No plan')+'</div></div>'+
+   (st==='active'?'<span class="badge b-green">● Active</span>':st==='trialing'?'<span class="badge b-amber">● Free trial</span>':'<span class="badge b-muted">● Inactive</span>')+'</div></div>'+
+   '<div class="grid2" style="margin-top:14px">'+
+   '<div class="panel"><div class="kicker">Starter</div><div style="font-size:2rem;font-weight:800;margin:.3rem 0">$99<span class="muted" style="font-size:1rem;font-weight:500">/mo</span></div><p class="muted small">Weekly profit review · supplier, labour &amp; pricing leaks · report history.</p><a class="btn btn-primary btn-block" style="margin-top:14px" href="'+STRIPE_STARTER+'" target="_blank" rel="noopener">Choose Starter</a></div>'+
+   '<div class="panel" style="border-color:var(--brand-line)"><div class="kicker" style="color:var(--brand)">Pro</div><div style="font-size:2rem;font-weight:800;margin:.3rem 0">$199<span class="muted" style="font-size:1rem;font-weight:500">/mo</span></div><p class="muted small">Everything in Starter · deeper recommendations · monthly trend · priority review.</p><a class="btn btn-primary btn-block" style="margin-top:14px" href="'+STRIPE_PRO+'" target="_blank" rel="noopener">Choose Pro</a></div>'+
+   '</div><p class="muted small" style="margin-top:14px">After you subscribe, your reviews unlock automatically once your payment is confirmed.</p>';
+  $('#p-billing').innerHTML=h;
+}
+
+/* ---------- settings ---------- */
+function renderSettings(){
+  var c=S.cafe, sysn=c.systems||{}, fx=c.fixed_costs||{};
+  var h='<h1 class="h1">Settings</h1><p class="lead">Keep this accurate so your reviews stay sharp.</p>'+
+   '<div class="panel"><div class="grid2"><div class="field"><label class="fl">Café name</label><input class="in" id="se-name" value="'+esc(c.name)+'"></div>'+
+   '<div class="field"><label class="fl">Location</label><input class="in" id="se-loc" value="'+esc(c.location||'')+'"></div></div>'+
+   '<div class="grid2"><div class="field"><label class="fl">Labour target %</label><input class="in" id="se-lab" type="number" value="'+esc(c.labour_target_pct||30)+'"></div>'+
+   '<div class="field"><label class="fl">Food cost target %</label><input class="in" id="se-food" type="number" value="'+esc(c.food_target_pct||30)+'"></div></div>'+
+   '<div class="field"><label class="fl">Monthly fixed costs ($)</label><input class="in" id="se-fixed" type="number" value="'+esc(fx.monthly||'')+'"></div>'+
+   '<div class="grid2"><div class="field"><label class="fl">Avg weekly sales ($)</label><input class="in" id="se-rev" type="number" value="'+esc(c.avg_weekly_revenue||'')+'"></div>'+
+   '<div class="field"><label class="fl">Suppliers</label><input class="in" id="se-supp" value="'+esc(sysn.suppliers||'')+'"></div></div>'+
+   '<div class="msg" id="seMsg"></div><button class="btn btn-primary" id="seSave">Save changes</button></div>'+
+   '<div class="panel"><div class="kicker">Your data</div><p class="muted small" style="margin:.5rem 0 0">Private to your café — never sold, never shared. Want it deleted? Reply to any Leak email and we’ll remove everything.</p></div>';
+  $('#p-settings').innerHTML=h;
+  $('#seSave').addEventListener('click',async function(){
+    var upd={name:$('#se-name').value.trim(),location:$('#se-loc').value.trim(),labour_target_pct:num($('#se-lab').value),
+      food_target_pct:num($('#se-food').value),avg_weekly_revenue:num($('#se-rev').value),
+      fixed_costs:Object.assign({},fx,{monthly:num($('#se-fixed').value)}),
+      systems:Object.assign({},sysn,{suppliers:$('#se-supp').value.trim()})};
+    var r=await sb.from('cafes').update(upd).eq('id',c.id);
+    if(r.error)msg('seMsg',r.error.message,0); else {Object.assign(S.cafe,upd);$('#cafeNm').textContent=S.cafe.name;msg('seMsg','Saved.',1);}
+  });
+}
+
+boot();
+</script>
+</body>
+</html>
