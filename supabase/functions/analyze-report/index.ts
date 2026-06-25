@@ -320,6 +320,8 @@ Set confidence "low" if files are unreadable, sales or wages are missing, or the
     // plausibility bounds — flag for review instead of publishing a scary, likely-wrong number
     if (labourPct && labourPct > 55) issues.push("labour % implausibly high — sales export may be partial");
     if (foodPct && foodPct > 50) issues.push("food cost % implausibly high — invoices or sales may be incomplete");
+    // a suspiciously LOW food cost almost always means missing invoices — the classic draft cause
+    if (foodPct != null && foodTarget && grossSales && foodPct < foodTarget * 0.5) issues.push("food cost suspiciously low — likely missing supplier invoices");
 
     const labourLeakWeekly = (labourPct && labourPct > labourTarget && grossSales)
       ? Math.round(((labourPct - labourTarget) / 100) * grossSales) : 0;
@@ -328,6 +330,17 @@ Set confidence "low" if files are unreadable, sales or wages are missing, or the
 
     let confidence = extracted.confidence || "medium";
     if (issues.length >= 2) confidence = "low";
+
+    // ---- specific, owner-friendly reasons a week gets held for review (what + how to fix) ----
+    const dollars = (n: number) => "$" + Math.round(n).toLocaleString();
+    const reviewReasons: { what: string; fix: string }[] = [];
+    if (!grossSales) reviewReasons.push({ what: "We couldn't find a sales total in your files.", fix: "Add your POS sales export for the week." });
+    if (!grossWages) reviewReasons.push({ what: "No wages figure came through.", fix: "Add your roster or wages report." });
+    if (labourPct && labourPct > 55) reviewReasons.push({ what: `Labour came out at ${labourPct}% — unusually high, which usually means the sales export is only part of the week.`, fix: "Check the POS export covers all 7 days, then re-upload it." });
+    if (foodPct != null && foodPct > 50) reviewReasons.push({ what: `Food cost came out at ${foodPct}% — very high, so some sales or invoices look missing.`, fix: "Double-check the sales export and invoices, then re-upload." });
+    if (foodPct != null && foodTarget && grossSales && foodPct < foodTarget * 0.5) reviewReasons.push({ what: `Food cost came out at ${foodPct}%, which is very low for ${dollars(grossSales)} of sales.`, fix: "You're probably missing some supplier invoices for the week — add the rest on the Upload page and we'll re-run it." });
+    if (sumDays && grossSales && Math.abs(sumDays - grossSales) / grossSales > 0.15) reviewReasons.push({ what: "Your daily sales don't add up to the weekly total.", fix: "The POS export may be truncated — re-export the full week and re-upload." });
+    if (extracted.confidence === "low" && !reviewReasons.length) reviewReasons.push({ what: "Some figures were hard to read from the files you sent.", fix: "Re-upload clearer copies — a PDF or CSV reads better than a photo." });
 
     // softest trading day (the "staffing Tuesday like a Friday" signal)
     let softestDay: string | null = null, softestVal = Infinity;
@@ -406,7 +419,8 @@ Order leaks biggest first. 2-4 leaks. Be specific and useful, not generic.`;
     // ====================================================================
     // 5. SAVE — auto-publish when confident, else flag for review
     // ====================================================================
-    const publish = confidence !== "low" && issues.length < 2;
+    // hold (draft) only when there's a concrete, explainable reason
+    const publish = reviewReasons.length === 0;
     const weekLabel = "Week starting " + new Date(wi.week_starting)
       .toLocaleDateString("en-AU", { day: "numeric", month: "long" });
 
@@ -427,6 +441,8 @@ Order leaks biggest first. 2-4 leaks. Be specific and useful, not generic.`;
         supplier_prices: extracted.supplier_prices, // kept for next week's creep comparison
         metrics,
         validation_issues: issues,
+        review_reasons: reviewReasons,                         // why it was held + how to fix (owner-facing)
+        review_reason: reviewReasons[0]?.what || null,
       },
       published: publish,
     }).select().single();

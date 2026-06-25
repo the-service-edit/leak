@@ -1027,7 +1027,10 @@ function viewReportByIndex(i){
   var d=rp.data||{}, leaks=d.leaks||[], acts=d.actions||[];
   var h='<div class="report">';
   if(rp.published===false){
-    h+='<div class="dq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg><div class="dqt"><b>Draft — flagged for review.</b> Some figures looked incomplete, so this one hasn’t auto-published. '+((d.validation_issues&&d.validation_issues.length)?'Notes: '+esc(d.validation_issues.join('; '))+'.':'')+'</div></div>';
+    var rr=(d.review_reasons&&d.review_reasons.length)?d.review_reasons:null;
+    var rbody = rr ? rr.map(function(r){return '<div style="margin-top:.5rem"><b>'+esc(r.what)+'</b> '+esc(r.fix)+'</div>';}).join('')
+                   : 'Some figures looked incomplete, so we held it back rather than publish numbers that might be off.';
+    h+='<div class="dq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg><div class="dqt"><b>Held for review — not published yet.</b> '+rbody+'<div style="margin-top:.8rem"><button class="btn btn-primary btn-sm" data-p="upload">Add files &amp; re-run →</button></div></div></div>';
   }
   h+='<div class="headline"><div class="lbl"><svg class="drop" style="width:15px;height:15px"><use href="#drop"/></svg> Estimated money leaking — '+esc(rp.week_label||'')+'</div>'+
      '<div class="big"><span class="cur">$</span>'+money(rp.estimated_leak)+'</div>'+
