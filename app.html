@@ -749,6 +749,7 @@ input[type=range]{flex:1;accent-color:var(--green)}
 
 <div class="toast" id="toast"></div>
 <input type="file" id="filePicker" multiple accept=".pdf,.csv,.xlsx,.xls,.txt,.png,.jpg,.jpeg,.heic" style="display:none">
+<input type="file" id="menuPicker" accept=".csv,.tsv,.txt" style="display:none">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -774,6 +775,20 @@ function initials(n){return (String(n||'').trim().split(/\s+/).map(function(w){r
 function shortType(t){return String(t||'').replace(/ leaks?$/i,'')||'—';}
 function sz(b){return b<1048576?Math.max(1,Math.round(b/1024))+' KB':(b/1048576).toFixed(1)+' MB';}
 function defaultWeek(){var d=new Date();d.setDate(d.getDate()-d.getDay()+1-7);return d.toISOString().slice(0,10);}
+/* ---------- menu-costing CSV parsing (client side, mirrors the engine) ---------- */
+function parseCSV(text){var lines=text.replace(/\r\n/g,'\n').split('\n').filter(function(l){return l.trim()!=='';});
+  function split(line){var out=[],cur='',q=false;for(var i=0;i<line.length;i++){var c=line[i];
+    if(c==='"'){if(q&&line[i+1]==='"'){cur+='"';i++;}else q=!q;}else if(c===','&&!q){out.push(cur);cur='';}else cur+=c;}
+    out.push(cur);return out.map(function(s){return s.trim();});}
+  if(!lines.length)return{headers:[],rows:[]};return{headers:split(lines[0]),rows:lines.slice(1).map(split)};}
+function findCol(headers){var names=[].slice.call(arguments,1);var h=headers.map(function(x){return x.toLowerCase().trim();});
+  for(var a=0;a<names.length;a++){var i=h.indexOf(names[a]);if(i>=0)return i;}
+  for(var b=0;b<names.length;b++){var j=h.findIndex(function(x){return x.indexOf(names[b])>-1;});if(j>=0)return j;}return -1;}
+function parseMenuCsv(text){var p=parseCSV(text);var nCol=findCol(p.headers,'menu item','item','product','name','dish');
+  var pCol=findCol(p.headers,'sell price','menu price','retail price','price');var cCol=findCol(p.headers,'plate cost','recipe cost','food cost','cost','cogs');
+  if(nCol<0||(pCol<0&&cCol<0))return null;var out=[];
+  p.rows.forEach(function(r){var name=(r[nCol]||'').trim();if(!name)return;var price=pCol>=0?num(r[pCol]):0;var cost=cCol>=0?num(r[cCol]):0;if(!price&&!cost)return;out.push({name:name,price:price,cost:cost});});
+  return out.length?out:null;}
 function confCls(c){c=String(c||'').toLowerCase();return c.indexOf('high')>-1?'high':c.indexOf('low')>-1?'low':'medium';}
 function confBars(c){return '<span class="conf '+confCls(c)+'"><span class="bars"><i></i><i></i><i></i></span> '+esc(c||'Medium')+'</span>';}
 
@@ -937,7 +952,7 @@ async function renderDashboard(){
 var UP={files:{}};
 function renderUpload(){
   UP={files:{}};
-  var cats=[['supplier','Supplier invoices','Milk, coffee, produce, bakery'],['pos','POS sales report','Daily sales + item mix'],['roster','Roster / wages','Rostered + actual hours'],['menu','Menu costing','Item sell price + plate cost · optional'],['other','Anything else','Notes, photos, anything that helps']];
+  var cats=[['supplier','Supplier invoices','Milk, coffee, produce, bakery'],['pos','POS sales report','Daily sales + item mix'],['roster','Roster / wages','Rostered + actual hours'],['other','Anything else','Notes, photos, anything that helps']];
   var h='<h1 class="greet" style="font-size:1.5rem">Upload last week’s numbers.</h1>'+
     '<p class="gsub" style="max-width:56ch;color:var(--muted);margin-top:.4rem">Add your supplier invoices, POS sales export and roster/wages report — ideally all in one go. Leak reviews them together and prepares your weekly profit report.</p>'+
     '<div class="grid2" style="margin-top:22px"><div class="field"><label class="f">Week starting</label><input class="input" id="upWeek" type="date" value="'+defaultWeek()+'"></div><div></div></div>'+
@@ -959,6 +974,19 @@ $('#filePicker').addEventListener('change',function(){
   var card=document.querySelector('.upcard[data-cat="'+cat+'"]');if(card)card.classList.add('has');
   var badge=document.querySelector('[data-badge="'+cat+'"]');if(badge){badge.className='badge b-green';badge.innerHTML='<span class="badge-dot"></span> '+UP.files[cat].length+' added';}
 });
+/* menu costing: parse client-side and save once to the café profile (Settings) */
+$('#menuPicker').addEventListener('change',function(){
+  var f=this.files[0];if(!f)return;var reader=new FileReader();
+  reader.onload=async function(){
+    var items=parseMenuCsv(String(reader.result||''));
+    if(!items){inlineMsg('menuMsg','Couldn’t read that — make sure it has Item, Sell price and Plate cost columns.',0);return;}
+    var r=await sb.from('cafes').update({menu_costing:items}).eq('id',S.cafe.id);
+    if(r.error){inlineMsg('menuMsg',r.error.message,0);return;}
+    S.cafe.menu_costing=items;toast(items.length+' items costed');renderSettings();
+  };
+  reader.readAsText(f);
+});
+function menuStateHtml(mc){return (mc&&mc.length)?'<div class="closed"><svg><use href="#check"/></svg> '+mc.length+' items costed · used on every weekly report</div>':'<p class="hint">No menu costing yet — your pricing leak stays an estimate until you add one.</p>';}
 async function submitUpload(){
   var any=Object.keys(UP.files).some(function(k){return UP.files[k]&&UP.files[k].length;});
   if(!any){inlineMsg('upMsg','Add at least one file first.',0);return;}
@@ -1092,8 +1120,14 @@ function renderSettings(){
     '<div class="grid2"><div class="field" style="margin-bottom:0"><label class="f">Labour target %</label><input class="input" id="se-lab" type="number" value="'+esc(c.labour_target_pct||30)+'"></div><div class="field" style="margin-bottom:0"><label class="f">Food cost target %</label><input class="input" id="se-food" type="number" value="'+esc(c.food_target_pct||30)+'"></div></div></div></div>'+
     '<div class="set-sec"><div class="set-card"><h3>Systems &amp; suppliers</h3><div class="sd">Helps Leak recognise your files.</div>'+
     '<div class="grid2"><div class="field"><label class="f">POS</label><input class="input" id="se-pos" value="'+esc(sys.pos||'')+'"></div><div class="field" style="margin-bottom:0"><label class="f">Main suppliers</label><input class="input" id="se-supp" value="'+esc(sys.suppliers||'')+'"></div></div></div></div>'+
+    '<div class="set-sec"><div class="set-card"><h3>Menu costing</h3><div class="sd">Set this once and every weekly report uses it for exact item margins. Upload a sheet with <b>Item · Sell price · Plate cost</b> — your POS already supplies the sell price and volume, so plate cost is the key column.</div>'+
+    '<div id="menuState">'+menuStateHtml(c.menu_costing)+'</div>'+
+    '<div style="display:flex;gap:.6rem;margin-top:14px;flex-wrap:wrap"><button class="btn btn-ghost" id="menuUpload">'+((c.menu_costing&&c.menu_costing.length)?'Replace menu costing':'Upload menu costing')+'</button>'+((c.menu_costing&&c.menu_costing.length)?'<button class="btn btn-quiet" id="menuClear">Remove</button>':'')+'</div>'+
+    '<div class="msg" id="menuMsg"></div></div></div>'+
     '<div class="msg" id="seMsg"></div><div style="margin-top:18px"><button class="btn btn-primary" id="seSave">Save changes</button></div>';
   $('#appContent').innerHTML=h;
+  $('#menuUpload').addEventListener('click',function(){var mp=$('#menuPicker');mp.value='';mp.click();});
+  var mclr=$('#menuClear');if(mclr)mclr.addEventListener('click',async function(){var r=await sb.from('cafes').update({menu_costing:null}).eq('id',c.id);if(r.error)inlineMsg('menuMsg',r.error.message,0);else{S.cafe.menu_costing=null;toast('Menu costing removed');renderSettings();}});
   $('#seSave').addEventListener('click',async function(){
     var upd={name:$('#se-name').value.trim(),location:$('#se-loc').value.trim(),avg_weekly_revenue:num($('#se-rev').value),labour_target_pct:num($('#se-lab').value),food_target_pct:num($('#se-food').value),fixed_costs:Object.assign({},fx,{monthly:num($('#se-fixed').value)}),systems:Object.assign({},sys,{pos:$('#se-pos').value.trim(),suppliers:$('#se-supp').value.trim()})};
     var r=await sb.from('cafes').update(upd).eq('id',c.id);

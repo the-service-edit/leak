@@ -358,12 +358,12 @@ Set confidence "low" if files are unreadable, sales or wages are missing, or the
       if (prev && sp.unit_price > prev) creeps.push({ item: sp.item, from: prev, to: sp.unit_price, pct: +(((sp.unit_price - prev) / prev) * 100).toFixed(1) });
     }
 
-    // menu costing (optional) — real per-item margins when a costing sheet is uploaded
+    // menu costing — per-item margins from the café's saved menu (set once in Settings),
+    // or a one-off weekly upload if one was attached this week.
     let menu: any = null;
-    if (menuText) {
-      const costed = menuCosting(menuText);
-      if (costed) menu = menuMargins(costed, posText ? posItems(posText) : []);
-    }
+    const costed = menuText ? menuCosting(menuText)
+                 : (Array.isArray(cafe?.menu_costing) && cafe.menu_costing.length ? cafe.menu_costing : null);
+    if (costed) menu = menuMargins(costed, posText ? posItems(posText) : []);
 
     const metrics = {
       gross_sales: grossSales, sales_by_day: sbd,
