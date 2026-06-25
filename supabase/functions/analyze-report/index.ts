@@ -19,7 +19,9 @@ const MODEL = "claude-sonnet-4-6"; // change if you prefer opus for quality
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, content-type",
+  // supabase-js sends apikey + x-client-info too; the browser preflight blocks the
+  // call unless they're allowed here (this was silently breaking the auto-trigger).
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 // ---------- Anthropic helper ----------
@@ -66,6 +68,70 @@ function toBase64(buf: ArrayBuffer) {
   return btoa(bin);
 }
 
+// ---------- deterministic tabular parsing ----------
+// LLMs are unreliable at summing thousands of rows, so we do the arithmetic in code
+// and treat those totals as authoritative (the model still sees a sample for context).
+const DOW = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+function parseCSV(text: string): { headers: string[]; rows: string[][] } {
+  const lines = text.replace(/\r\n/g, "\n").split("\n").filter((l) => l.trim() !== "");
+  const split = (line: string) => {
+    const out: string[] = []; let cur = ""; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { if (q && line[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
+      else if (c === "," && !q) { out.push(cur); cur = ""; }
+      else cur += c;
+    }
+    out.push(cur); return out.map((s) => s.trim());
+  };
+  if (!lines.length) return { headers: [], rows: [] };
+  return { headers: split(lines[0]), rows: lines.slice(1).map(split) };
+}
+
+function num(s: string): number {
+  const n = parseFloat(String(s).replace(/[^0-9.\-]/g, ""));
+  return isNaN(n) ? 0 : n;
+}
+
+// find a column by header name: exact match first, then substring
+function findCol(headers: string[], ...names: string[]): number {
+  const h = headers.map((x) => x.toLowerCase().trim());
+  for (const name of names) { const i = h.indexOf(name); if (i >= 0) return i; }
+  for (const name of names) { const i = h.findIndex((x) => x.includes(name)); if (i >= 0) return i; }
+  return -1;
+}
+
+// Pull reliable totals from a CSV: gross sales (+ by weekday) and/or gross wages.
+function summarizeTabular(label: string, text: string) {
+  const { headers, rows } = parseCSV(text);
+  if (!headers.length) return null;
+  const gsCol = findCol(headers, "gross sales", "gross amount", "sale total", "total sales");
+  const dateCol = findCol(headers, "sale date", "business date", "date");
+  const gwCol = findCol(headers, "gross wages", "gross wage", "gross pay");
+  let grossSales = 0, grossWages = 0;
+  const byDay: Record<string, number> = {};
+  for (const r of rows) {
+    if (gsCol >= 0 && r[gsCol]) {
+      const v = num(r[gsCol]); grossSales += v;
+      if (dateCol >= 0 && r[dateCol]) {
+        const d = new Date(r[dateCol]);
+        if (!isNaN(d.getTime())) { const k = DOW[d.getUTCDay()]; byDay[k] = (byDay[k] || 0) + v; }
+      }
+    }
+    if (gwCol >= 0 && r[gwCol]) grossWages += num(r[gwCol]);
+  }
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  for (const k in byDay) byDay[k] = round2(byDay[k]);
+  return {
+    label, headerLine: headers.join(","), rowCount: rows.length,
+    sample: rows.slice(0, 25).map((r) => r.join(",")).join("\n"),
+    grossSales: gsCol >= 0 ? round2(grossSales) : null,
+    salesByDay: Object.keys(byDay).length ? byDay : null,
+    grossWages: gwCol >= 0 ? round2(grossWages) : null,
+  };
+}
+
 // ============================================================================
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -88,13 +154,32 @@ serve(async (req) => {
     // 1. EXTRACT — Claude reads the uploaded files into structured numbers
     // ====================================================================
     const fileBlocks: any[] = [];
+    let detSales: number | null = null;                 // gross sales summed in code (authoritative)
+    let detSalesByDay: Record<string, number> | null = null;
+    let detWages: number | null = null;                 // gross wages summed in code (authoritative)
     for (const f of (wi.files || [])) {
       const { data: blob } = await sb.storage.from("cafe-files").download(f.path);
       if (!blob) continue;
       const [kind, mt] = mediaType(f.path);
       const buf = await blob.arrayBuffer();
       if (kind === "text") {
-        fileBlocks.push({ type: "text", text: `FILE (${f.label}) ${f.path}:\n` + new TextDecoder().decode(buf) });
+        const text = new TextDecoder().decode(buf);
+        const sum = summarizeTabular(f.label || f.path, text);
+        if (sum && (sum.grossSales != null || sum.grossWages != null)) {
+          // tabular file we can total in code — send a compact summary, not 1000s of rows
+          if (sum.grossSales != null) detSales = (detSales || 0) + sum.grossSales;
+          if (sum.salesByDay) detSalesByDay = { ...(detSalesByDay || {}), ...sum.salesByDay };
+          if (sum.grossWages != null) detWages = (detWages || 0) + sum.grossWages;
+          fileBlocks.push({ type: "text", text:
+            `FILE (${f.label}) ${f.path} — ${sum.rowCount} rows. Totals computed in code (AUTHORITATIVE — use these, do not recompute):` +
+            (sum.grossSales != null ? `\n  gross_sales = ${sum.grossSales}` : "") +
+            (sum.salesByDay ? `\n  sales_by_day = ${JSON.stringify(sum.salesByDay)}` : "") +
+            (sum.grossWages != null ? `\n  gross_wages = ${sum.grossWages}` : "") +
+            `\nColumns: ${sum.headerLine}\nSample (first 25 of ${sum.rowCount} rows):\n${sum.sample}` });
+        } else {
+          // small/non-tabular text — pass it whole
+          fileBlocks.push({ type: "text", text: `FILE (${f.label}) ${f.path}:\n` + text });
+        }
       } else if (kind === "image") {
         fileBlocks.push({ type: "image", source: { type: "base64", media_type: mt, data: toBase64(buf) } });
       } else {
@@ -136,6 +221,11 @@ Set confidence "low" if files are unreadable, sales or wages are missing, or the
       { type: "text", text: `Café: ${cafe?.name}. Week starting ${wi.week_starting}. Owner notes: ${(wi.context?.notes) || "none"}.` },
       ...fileBlocks,
     ], 2500));
+
+    // deterministic totals win over the model's reading of large tables
+    if (detSales != null) extracted.gross_sales = detSales;
+    if (detSalesByDay) extracted.sales_by_day = detSalesByDay;
+    if (detWages != null) extracted.gross_wages = detWages;
 
     // ====================================================================
     // 2. VALIDATE + 3. COMPUTE  — deterministic, on the correct basis
