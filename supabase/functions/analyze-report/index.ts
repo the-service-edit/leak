@@ -132,6 +132,63 @@ function summarizeTabular(label: string, text: string) {
   };
 }
 
+// Aggregate a POS export into per-product sales volume (qty + revenue).
+function posItems(text: string) {
+  const { headers, rows } = parseCSV(text);
+  const pCol = findCol(headers, "product", "item", "name", "description");
+  const qCol = findCol(headers, "quantity", "qty");
+  const gCol = findCol(headers, "gross sales", "gross", "amount", "sale total");
+  if (pCol < 0) return [];
+  const map: Record<string, { name: string; qty: number; revenue: number }> = {};
+  for (const r of rows) {
+    const name = (r[pCol] || "").trim(); if (!name) continue;
+    const k = name.toLowerCase();
+    if (!map[k]) map[k] = { name, qty: 0, revenue: 0 };
+    if (qCol >= 0) map[k].qty += num(r[qCol]);
+    if (gCol >= 0) map[k].revenue += num(r[gCol]);
+  }
+  return Object.values(map);
+}
+
+// Parse an (optional) menu-costing sheet: item -> sell price + plate cost.
+function menuCosting(text: string) {
+  const { headers, rows } = parseCSV(text);
+  const nCol = findCol(headers, "menu item", "item", "product", "name", "dish");
+  const pCol = findCol(headers, "sell price", "menu price", "retail price", "price");
+  const cCol = findCol(headers, "plate cost", "recipe cost", "food cost", "cost", "cogs");
+  if (nCol < 0 || (pCol < 0 && cCol < 0)) return null;
+  const out: any[] = [];
+  for (const r of rows) {
+    const name = (r[nCol] || "").trim(); if (!name) continue;
+    const price = pCol >= 0 ? num(r[pCol]) : 0;
+    const cost = cCol >= 0 ? num(r[cCol]) : 0;
+    if (!price && !cost) continue;
+    out.push({ name, price, cost });
+  }
+  return out.length ? out : null;
+}
+
+// Join menu costs to POS volume -> per-item margin, weekly profit, biggest drains.
+function menuMargins(menu: any[], items: any[]) {
+  const byName: Record<string, any> = {};
+  for (const it of items) byName[it.name.toLowerCase()] = it;
+  const rows: any[] = [];
+  for (const mi of menu) {
+    if (!mi.price) continue;
+    const sold = byName[mi.name.toLowerCase()];
+    const qty = sold ? Math.round(sold.qty) : null;
+    const marginPct = +(((mi.price - mi.cost) / mi.price) * 100).toFixed(1);
+    const costPct = +((mi.cost / mi.price) * 100).toFixed(1);
+    const weeklyProfit = qty != null ? Math.round((mi.price - mi.cost) * qty) : null;
+    rows.push({ name: mi.name, price: mi.price, cost: mi.cost, margin_pct: marginPct, cost_pct: costPct, qty, weekly_profit: weeklyProfit });
+  }
+  // "quietly losing money" = high volume on a thin margin (cost is a big % of price)
+  const drains = rows.filter((r) => r.qty && r.cost_pct >= 40)
+    .sort((a, b) => (b.qty * b.cost_pct) - (a.qty * a.cost_pct)).slice(0, 5);
+  const matched = rows.filter((r) => r.qty != null).length;
+  return { items: rows, drains, matched, count: rows.length };
+}
+
 // ============================================================================
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -157,6 +214,8 @@ serve(async (req) => {
     let detSales: number | null = null;                 // gross sales summed in code (authoritative)
     let detSalesByDay: Record<string, number> | null = null;
     let detWages: number | null = null;                 // gross wages summed in code (authoritative)
+    let posText = "";                                   // raw POS export (for per-item volume)
+    let menuText = "";                                  // raw menu-costing sheet (optional)
     for (const f of (wi.files || [])) {
       const { data: blob } = await sb.storage.from("cafe-files").download(f.path);
       if (!blob) continue;
@@ -164,6 +223,8 @@ serve(async (req) => {
       const buf = await blob.arrayBuffer();
       if (kind === "text") {
         const text = new TextDecoder().decode(buf);
+        if (f.label === "menu") menuText = text;
+        else if (f.label === "pos") posText = text;
         const sum = summarizeTabular(f.label || f.path, text);
         if (sum && (sum.grossSales != null || sum.grossWages != null)) {
           // tabular file we can total in code — send a compact summary, not 1000s of rows
@@ -284,6 +345,13 @@ Set confidence "low" if files are unreadable, sales or wages are missing, or the
       if (prev && sp.unit_price > prev) creeps.push({ item: sp.item, from: prev, to: sp.unit_price, pct: +(((sp.unit_price - prev) / prev) * 100).toFixed(1) });
     }
 
+    // menu costing (optional) — real per-item margins when a costing sheet is uploaded
+    let menu: any = null;
+    if (menuText) {
+      const costed = menuCosting(menuText);
+      if (costed) menu = menuMargins(costed, posText ? posItems(posText) : []);
+    }
+
     const metrics = {
       gross_sales: grossSales, sales_by_day: sbd,
       gross_wages: grossWages, super_rate: superRate, wages_total: wagesTotal,
@@ -293,6 +361,7 @@ Set confidence "low" if files are unreadable, sales or wages are missing, or the
       cogs_excluded: extracted.cogs_excluded || [],
       fixed_costs_monthly: cafe?.fixed_costs?.monthly || null,
       items: extracted.items || [],
+      menu,   // { items, drains, matched, count } when a menu-costing sheet was provided
     };
 
     // ====================================================================
@@ -303,6 +372,11 @@ Set confidence "low" if files are unreadable, sales or wages are missing, or the
 Voice: direct, warm, plain English, like one operator to another. Never corporate, never "AI",
 never "leverage/optimise/actionable". Say things like "you're staffing Tuesday like it's a Friday".
 You are given COMPUTED metrics — trust them, don't invent numbers.
+MENU PRICING: if metrics.menu is present, a menu-costing sheet was uploaded — base the Menu pricing
+leak on REAL per-item margins. Name specific items from metrics.menu.drains (high-volume items where
+cost is a big share of the price), cite their margin %, plate cost and weekly quantity, and give an
+exact "raise it $X" action. If metrics.menu is null, you may still flag a pricing concern but call it
+an ESTIMATE and suggest uploading a menu-costing sheet for exact figures.
 IMPORTANT context handling: if owner notes mention rain, a public holiday, school holidays or a
 one-off event, do NOT treat a quiet day as a staffing problem — call it out as context.
 Return ONLY JSON:

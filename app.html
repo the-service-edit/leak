@@ -937,7 +937,7 @@ async function renderDashboard(){
 var UP={files:{}};
 function renderUpload(){
   UP={files:{}};
-  var cats=[['supplier','Supplier invoices','Milk, coffee, produce, bakery'],['pos','POS sales report','Daily sales + item mix'],['roster','Roster / wages','Rostered + actual hours'],['other','Anything else','Notes, photos, menu costings']];
+  var cats=[['supplier','Supplier invoices','Milk, coffee, produce, bakery'],['pos','POS sales report','Daily sales + item mix'],['roster','Roster / wages','Rostered + actual hours'],['menu','Menu costing','Item sell price + plate cost · optional'],['other','Anything else','Notes, photos, anything that helps']];
   var h='<h1 class="greet" style="font-size:1.5rem">Upload last week’s numbers.</h1>'+
     '<p class="gsub" style="max-width:56ch;color:var(--muted);margin-top:.4rem">Add your supplier invoices, POS sales export and roster/wages report — ideally all in one go. Leak reviews them together and prepares your weekly profit report.</p>'+
     '<div class="grid2" style="margin-top:22px"><div class="field"><label class="f">Week starting</label><input class="input" id="upWeek" type="date" value="'+defaultWeek()+'"></div><div></div></div>'+
@@ -1036,6 +1036,13 @@ function viewReportByIndex(i){
   if(rp.summary)h+='<div class="exec"><h3><svg class="drop" style="width:16px;height:16px"><use href="#drop"/></svg> The week in one read</h3><p>'+esc(rp.summary)+'</p><span class="voice">Reviewed the way an experienced operator would — not an accountant.</span></div>';
   if(leaks.length)h+='<div class="leaks-head"><span class="sec-label">Biggest leaks this week</span><span class="hint">Tap a card for the full breakdown</span></div><div class="leaklist">'+leaks.map(leakCard).join('')+'</div>';
   if(acts.length)h+='<div class="actions"><div class="act-top"><div><span class="sec-label">Fix next week</span><h3 style="font-size:1.3rem;margin-top:.5rem">'+acts.length+' action'+(acts.length>1?'s':'')+'.</h3></div></div><div class="acts">'+acts.map(function(a){return '<div class="act"><div class="cb"><svg><use href="#check"/></svg></div><div class="act-main"><div class="at">'+esc(a)+'</div></div></div>';}).join('')+'</div></div>';
+  var menu=(d.metrics&&d.metrics.menu)||null;
+  if(menu&&menu.drains&&menu.drains.length){
+    h+='<div class="dash-card" style="margin-top:34px"><div class="dash-h">Items quietly losing you money</div><div class="dash-sub">Your best sellers on the thinnest margins — from your menu-costing sheet.</div>'+
+       '<table class="invtab"><tr><td style="color:var(--muted)">Item</td><td class="amt" style="color:var(--muted)">Sells</td><td class="amt" style="color:var(--muted)">Plate cost</td><td class="amt" style="color:var(--muted)">Margin</td><td class="amt" style="color:var(--muted)">Sold/wk</td></tr>'+
+       menu.drains.map(function(it){var col=it.cost_pct>=60?'var(--leak)':it.cost_pct>=45?'var(--amber)':'var(--green)';return '<tr><td>'+esc(it.name)+'</td><td class="amt">$'+money(it.price)+'</td><td class="amt">$'+money(it.cost)+'</td><td class="amt" style="color:'+col+';font-weight:700">'+it.margin_pct+'%</td><td class="amt">'+(it.qty!=null?it.qty:'—')+'</td></tr>';}).join('')+
+       '</table><div class="src" style="margin-top:12px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v5h5"/><path d="M7 3h7l5 5v13H7z"/></svg> Margin = (sell price − plate cost) ÷ sell price, against this week\'s sales volume.</div></div>';
+  }
   h+='<div class="disclaimer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg> Operational guidance based on the numbers you shared — not accounting advice. Private to your café.</div></div>';
   $('#repDetail').innerHTML=h;
   document.querySelectorAll('.histrow[data-i]').forEach(function(r){r.style.outline='';});
