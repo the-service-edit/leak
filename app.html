@@ -965,13 +965,24 @@ async function submitUpload(){
   var b=$('#upSubmit');b.disabled=true;b.textContent='Uploading…';
   var week=$('#upWeek').value||defaultWeek();
   try{
-    // merge with any files already on this week so a second batch doesn't wipe the first
+    // Merge with the week's existing files — but keep it sane:
+    //  · pos/roster/menu: one per week, so re-uploading REPLACES the old one
+    //  · supplier/other: many per week, so they ADD (de-duped by filename)
+    // This stops a second batch wiping the first AND stops files piling up.
+    var SINGLE={pos:1,roster:1,menu:1};
     var ex=await sb.from('weekly_inputs').select('files,context').eq('cafe_id',S.cafe.id).eq('week_starting',week).maybeSingle();
-    var uploaded=(ex.data&&ex.data.files)?ex.data.files.slice():[];
+    var existing=(ex.data&&ex.data.files)?ex.data.files.slice():[];
+    var catsNow=Object.keys(UP.files).filter(function(k){return UP.files[k]&&UP.files[k].length;});
+    function baseName(p){return String(p).split('/').pop().replace(/^[a-z]+-\d+-/,'');}
+    // drop existing single-category files we're replacing this round
+    var uploaded=existing.filter(function(f){return !(SINGLE[f.label] && catsNow.indexOf(f.label)>-1);});
+    var seen={}; uploaded.forEach(function(f){seen[baseName(f.path)]=true;});
     for(var cat in UP.files){ for(var i=0;i<UP.files[cat].length;i++){var f=UP.files[cat][i];
-      var path=S.cafe.id+'/'+week+'/'+cat+'-'+Date.now()+'-'+f.name.replace(/[^\w.\-]/g,'_');
+      var clean=f.name.replace(/[^\w.\-]/g,'_');
+      if(!SINGLE[cat] && seen[clean]) continue;                 // skip a duplicate invoice/file
+      var path=S.cafe.id+'/'+week+'/'+cat+'-'+Date.now()+'-'+clean;
       var up=await sb.storage.from('cafe-files').upload(path,f);
-      if(up.error)throw up.error; uploaded.push({path:path,label:cat,size:f.size});
+      if(up.error)throw up.error; uploaded.push({path:path,label:cat,size:f.size}); seen[clean]=true;
     }}
     var notes=$('#upNotes').value.trim()||((ex.data&&ex.data.context&&ex.data.context.notes)||'');
     var row={cafe_id:S.cafe.id,week_starting:week,status:'ready',files:uploaded,context:{notes:notes}};
